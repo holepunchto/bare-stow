@@ -1,0 +1,79 @@
+{
+  "name": "bare-stow",
+  "version": "0.0.0",
+  "description": "Module bundling and harness generation for Bare",
+  "exports": {
+    "./package": "./package.json",
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "imports": {
+    "fs": {
+      "bare": "bare-fs",
+      "default": "fs"
+    },
+    "path": {
+      "bare": "bare-path",
+      "default": "path"
+    },
+    "url": {
+      "bare": "bare-url",
+      "default": "url"
+    }
+  },
+  "bin": {
+    "bare-stow": "bin.js"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "bin.js",
+    "lib"
+  ],
+  "scripts": {
+    "format": "prettier --write . && lunte --fix",
+    "lint": "prettier --check . && lunte",
+    "test": "npm run test:bare && npm run test:node",
+    "test:bare": "brittle-bare --coverage test.js",
+    "test:node": "brittle-node --coverage test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/holepunchto/bare-stow.git"
+  },
+  "author": "Holepunch",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/holepunchto/bare-stow/issues"
+  },
+  "homepage": "https://github.com/holepunchto/bare-stow#readme",
+  "dependencies": {
+    "bare-bundle": "^1.8.3",
+    "bare-bundle-id": "^1.0.0",
+    "bare-fs": "^4.2.1",
+    "bare-module-traverse": "^2.1.1",
+    "bare-pack": "^2.1.0",
+    "bare-path": "^3.0.0",
+    "paparam": "^1.5.0"
+  },
+  "devDependencies": {
+    "brittle": "^4.0.2",
+    "lunte": "^1.7.0",
+    "prettier": "^3.3.3",
+    "prettier-config-holepunch": "^2.0.0"
+  },
+  "peerDependencies": {
+    "bare-buffer": "^3.6.0",
+    "bare-url": "^2.4.0"
+  },
+  "peerDependenciesMeta": {
+    "bare-buffer": {
+      "optional": true
+    },
+    "bare-url": {
+      "optional": true
+    }
+  }
+}
