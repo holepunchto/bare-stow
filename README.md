@@ -10,6 +10,18 @@ npm i [-g] bare-stow
 
 ## Usage
 
+Given an entry module `core.js` that exports a `start` function receiving the host IPC:
+
+```js
+module.exports = function start(ipc) {
+  ipc.on('data', (data) => {
+    // Handle messages from the host
+  })
+}
+```
+
+Stow it for the `node` target:
+
 ```js
 const stow = require('bare-stow')
 
@@ -19,6 +31,16 @@ const out = new URL('file:///app/out/index.js')
 for await (const artifact of stow(entry, 'node', out)) {
   console.log(artifact.url.href)
 }
+```
+
+This writes the harness to `out` and the bundle alongside it. The harness can then be required from the host and booted with `start()`:
+
+```js
+const harness = require('/app/out/index.js')
+
+const { ipc } = await harness.start()
+
+ipc.write('hello from the host')
 ```
 
 ## API
