@@ -33,6 +33,12 @@ for await (const artifact of stow(entry, 'node', out)) {
 }
 ```
 
+Or equivalently from the command line:
+
+```console
+$ bare-stow --target node --out ./out/index.js ./core.js
+```
+
 This writes the harness to `out` and the bundle alongside it. The harness can then be required from the host and booted with `start()`:
 
 ```js
