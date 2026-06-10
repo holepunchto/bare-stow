@@ -93,9 +93,17 @@ function collectOffloaded(base, out, sink) {
   const dir = new URL('./', out)
 
   return function writeFile(url, source) {
-    const relative = url.pathname.startsWith(base.pathname)
-      ? url.pathname.slice(base.pathname.length)
-      : url.pathname.replace(/^\//, '')
+    let relative
+
+    const nm = url.pathname.indexOf('/node_modules/')
+
+    if (nm >= 0) {
+      relative = url.pathname.slice(nm + 1)
+    } else if (url.pathname.startsWith(base.pathname)) {
+      relative = url.pathname.slice(base.pathname.length)
+    } else {
+      relative = url.pathname.replace(/^\//, '')
+    }
 
     sink.push({ url: new URL(relative, dir), source })
 

@@ -87,6 +87,24 @@ test('stow accepts a subset of target hosts', async (t) => {
   t.alike(artifacts, [{ url: out }, { url: new URL('out/index.bundle', base) }])
 })
 
+test('stow reroots offloaded assets resolved outside base', async (t) => {
+  const base = new URL('reroot/app/', fixtures)
+  const entry = new URL('core.js', base)
+  const out = new URL('out/index.js', base)
+
+  const artifacts = []
+
+  for await (const artifact of stow(entry, 'node', out, { base })) {
+    artifacts.push(artifact)
+  }
+
+  t.alike(artifacts, [
+    { url: out },
+    { url: new URL('out/index.bundle', base) },
+    { url: new URL('out/node_modules/dummy/asset.txt', base) }
+  ])
+})
+
 test('stow throws for host not supported by target', async (t) => {
   const base = new URL('basic/', fixtures)
   const entry = new URL('core.js', base)
