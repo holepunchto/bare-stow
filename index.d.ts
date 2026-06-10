@@ -8,6 +8,7 @@ interface StowOptions {
   client?: RPC
   server?: RPC
   base?: URL | string
+  hosts?: string[]
 }
 
 interface StowArtifact {

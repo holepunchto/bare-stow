@@ -11,13 +11,23 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
   if (!target) throw new Error("'target' is required")
   if (!out) throw new Error("'out' is required")
 
-  let { client, server, base, ...packOpts } = opts
+  let { client, server, base, hosts, ...packOpts } = opts
 
   const t = harness(target)
 
   entry = new URL(entry)
   out = new URL(out)
   base = base ? new URL(base) : new URL('./', entry)
+
+  if (hosts) {
+    for (const host of hosts) {
+      if (!t.hosts.includes(host)) {
+        throw new Error(`Host '${host}' is not supported by target '${target}'`)
+      }
+    }
+  } else {
+    hosts = t.hosts
+  }
 
   const shimURL = shim.url(base)
   const shimSource = shim(entry, shimURL, { server })
@@ -38,7 +48,7 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
     {
       resolve: resolve.bare,
       ...packOpts,
-      hosts: t.hosts,
+      hosts,
       linked: t.linked,
       offload: t.offload,
       base: base

@@ -19,9 +19,10 @@ const cmd = command(
   flag('--builtins <path>', 'A list of builtin modules'),
   flag('--imports <path>', 'A map of global import overrides'),
   flag('--defer <specifier>', 'A module specifier to defer resolution of').multiple(),
+  flag('--host <name>', 'A host triple to include (must be a subset of the target)').multiple(),
   async (cmd) => {
     const { entry } = cmd.args
-    let { version, target, client, server, base = '.', out, builtins, imports, defer } = cmd.flags
+    let { version, target, client, server, base = '.', out, builtins, imports, defer, host: hosts } = cmd.flags
 
     if (version) return console.log(`v${pkg.version}`)
 
@@ -48,6 +49,7 @@ const cmd = command(
       client,
       server,
       base,
+      hosts,
       resolve: resolve.bare,
       builtins,
       imports,

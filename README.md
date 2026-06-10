@@ -65,13 +65,15 @@ Options include:
 opts = {
   client,
   server,
-  base
+  base,
+  hosts
 }
 ```
 
 - `client`: Name of the RPC library to wire into the harness as a client. Currently only `'bare-rpc'` is supported.
 - `server`: Name of the RPC library to wire into the bundle entry shim as a server. Currently only `'bare-rpc'` is supported.
 - `base`: The base `URL` of the module graph. Defaults to the directory containing `entry`.
+- `hosts`: An array of host triples to build for. Must be a subset of the host triples supported by the target; passing a host the target does not support throws. Defaults to all host triples supported by the target.
 
 Any additional options are forwarded to `bare-pack`. See <https://github.com/holepunchto/bare-pack> for the full set, including `builtins`, `imports`, `defer`, and `resolve`.
 
@@ -91,6 +93,7 @@ Stow the module graph rooted at `<entry>`, writing the harness and bundle to the
 --builtins <path>
 --imports <path>
 --defer <specifier>
+--host <name>
 --help|-h
 ```
 
@@ -115,6 +118,10 @@ Paths to JavaScript or JSON files exporting a list of builtin module names and a
 ##### `--defer <specifier>`
 
 A module specifier whose resolution should be deferred. May be passed multiple times.
+
+##### `--host <name>`
+
+A host triple to build for. Must be a subset of the host triples supported by the target. May be passed multiple times. Defaults to all host triples supported by the target.
 
 ## License
 
