@@ -1,6 +1,7 @@
 /* eslint-disable */
 
-exports['harness react-native - should match snapshot - 0'] = `import { Worklet } from 'react-native-bare-kit'
+exports['harness react-native - should match snapshot - 0'] =
+  `import { Worklet } from 'react-native-bare-kit'
 import bundle from "./core.bundle.mjs"
 
 export default {
@@ -43,7 +44,8 @@ module.exports = {
 }
 `
 
-exports['harness node with bare-rpc client - should match snapshot - 0'] = `const path = require('path')
+exports['harness node with bare-rpc client - should match snapshot - 0'] =
+  `const path = require('path')
 const Sidecar = require('bare-sidecar')
 
 const bundle = path.join(__dirname, "./core.bundle")
@@ -64,7 +66,8 @@ module.exports = {
 }
 `
 
-exports['harness react-native with bare-rpc client - should match snapshot - 0'] = `import { Worklet } from 'react-native-bare-kit'
+exports['harness react-native with bare-rpc client - should match snapshot - 0'] =
+  `import { Worklet } from 'react-native-bare-kit'
 import bundle from "./core.bundle.mjs"
 
 export default {
@@ -87,7 +90,8 @@ export default {
 }
 `
 
-exports['harness pear-runtime with bare-rpc client - should match snapshot - 0'] = `const path = require('path')
+exports['harness pear-runtime with bare-rpc client - should match snapshot - 0'] =
+  `const path = require('path')
 
 const bundle = path.join(__dirname, "./core.bundle")
 
