@@ -5,7 +5,9 @@ const start = entry.default || entry
 
 const ipc = Bare.IPC
 
-start(ipc)
+Promise.resolve(start(ipc)).then((stop) => {
+  if (typeof stop === 'function') Bare.on('beforeExit', stop)
+})
 `
 
 exports['shim pear-runtime - should match snapshot - 0'] = `const entry = require("./entry.js")
@@ -13,7 +15,9 @@ const start = entry.default || entry
 
 const ipc = Bare.IPC
 
-start(ipc)
+Promise.resolve(start(ipc)).then((stop) => {
+  if (typeof stop === 'function') Bare.on('beforeExit', stop)
+})
 `
 
 exports['shim node - should match snapshot - 0'] = `const entry = require("./entry.js")
@@ -21,7 +25,9 @@ const start = entry.default || entry
 
 const ipc = Bare.IPC
 
-start(ipc)
+Promise.resolve(start(ipc)).then((stop) => {
+  if (typeof stop === 'function') Bare.on('beforeExit', stop)
+})
 `
 
 exports['shim react-native with bare-rpc server - should match snapshot - 0'] = `const entry = require("./entry.js")
@@ -36,7 +42,9 @@ const rpc = new RPC(ipc, router)
 
 rpc.respond = router.respond.bind(router)
 
-start({ rpc, ipc })
+Promise.resolve(start({ rpc, ipc })).then((stop) => {
+  if (typeof stop === 'function') Bare.on('beforeExit', stop)
+})
 `
 
 exports['shim node with bare-rpc server - should match snapshot - 0'] = `const entry = require("./entry.js")
@@ -51,7 +59,9 @@ const rpc = new RPC(ipc, router)
 
 rpc.respond = router.respond.bind(router)
 
-start({ rpc, ipc })
+Promise.resolve(start({ rpc, ipc })).then((stop) => {
+  if (typeof stop === 'function') Bare.on('beforeExit', stop)
+})
 `
 
 /* eslint-enable */

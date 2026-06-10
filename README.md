@@ -10,13 +10,17 @@ npm i [-g] bare-stow
 
 ## Usage
 
-Given an entry module `core.js` that exports a `start` function receiving the host IPC:
+Given an entry module `core.js` that exports a `start` function receiving the host IPC. The function may optionally return (or resolve to) a function that runs before the bundle exits:
 
 ```js
-module.exports = function start(ipc) {
+module.exports = async function start(ipc) {
   ipc.on('data', (data) => {
     // Handle messages from the host
   })
+
+  return async function stop() {
+    // Clean up before the bundle exits
+  }
 }
 ```
 
