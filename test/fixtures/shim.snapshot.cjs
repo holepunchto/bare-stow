@@ -30,7 +30,8 @@ Promise.resolve(start(ipc)).then((stop) => {
 })
 `
 
-exports['shim react-native with bare-rpc server - should match snapshot - 0'] = `const entry = require("./entry.js")
+exports['shim react-native with bare-rpc server - should match snapshot - 0'] =
+  `const entry = require("./entry.js")
 const start = entry.default || entry
 
 const ipc = Bare.IPC
@@ -47,7 +48,8 @@ Promise.resolve(start({ rpc, ipc })).then((stop) => {
 })
 `
 
-exports['shim node with bare-rpc server - should match snapshot - 0'] = `const entry = require("./entry.js")
+exports['shim node with bare-rpc server - should match snapshot - 0'] =
+  `const entry = require("./entry.js")
 const start = entry.default || entry
 
 const ipc = Bare.IPC

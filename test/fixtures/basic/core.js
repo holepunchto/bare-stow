@@ -1,1 +1,1 @@
-module.exports = function start({ rpc }) {}
+module.exports = function start() {}
