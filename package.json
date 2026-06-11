@@ -7,7 +7,9 @@
     ".": {
       "types": "./index.d.ts",
       "default": "./index.js"
-    }
+    },
+    "./protocol": "./lib/protocol.js",
+    "./host": "./lib/host.js"
   },
   "imports": {
     "fs": {
@@ -56,9 +58,11 @@
     "bare-module-traverse": "^2.1.1",
     "bare-pack": "^2.1.0",
     "bare-path": "^3.0.0",
-    "paparam": "^1.5.0"
+    "paparam": "^1.5.0",
+    "streamx": "^2.27.0"
   },
   "devDependencies": {
+    "bare-sidecar": "^0.4.6",
     "brittle": "^4.0.2",
     "lunte": "^1.7.0",
     "prettier": "^3.3.3",

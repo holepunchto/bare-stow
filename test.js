@@ -6,7 +6,10 @@ const stow = require('.')
 const fixtures = pathToFileURL(path.join(__dirname, 'test/fixtures') + '/')
 
 require('./test/harness')
+require('./test/host')
+require('./test/protocol')
 require('./test/shim')
+require('./test/sidecar')
 
 test('stow react-native yields harness + bundle', async (t) => {
   const base = new URL('basic/', fixtures)
