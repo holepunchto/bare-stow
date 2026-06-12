@@ -10,7 +10,7 @@ rpc.respond = router.respond.bind(router)
 
 exports['rpc bare-rpc client - types - 0'] = "import('bare-rpc')"
 
-exports['rpc bare-rpc server - setup - 0'] = `import RPC from 'bare-rpc'
+exports['rpc bare-rpc server - setup - 0'] = `const { default: RPC } = await import('bare-rpc')
 
 const router = new RPC.CommandRouter()
 const rpc = new RPC(ipc, router)
