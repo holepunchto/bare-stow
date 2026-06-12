@@ -56,7 +56,7 @@ exports['shim with bare-rpc server - should match snapshot - 0'] =
 
 const ipc = protocol.attach(Bare.IPC)
 
-import RPC from 'bare-rpc'
+const { default: RPC } = await import('bare-rpc')
 
 const router = new RPC.CommandRouter()
 const rpc = new RPC(ipc, router)
