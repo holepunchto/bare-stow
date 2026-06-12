@@ -5,40 +5,12 @@ const stow = require('.')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'test/fixtures') + '/')
 
-require('./test/harness')
+require('./test/target')
 require('./test/rpc')
 require('./test/host')
 require('./test/protocol')
 require('./test/shim')
 require('./test/sidecar')
-
-test('stow react-native yields harness + bundle', async (t) => {
-  const base = new URL('basic/', fixtures)
-  const entry = new URL('core.js', base)
-  const out = new URL('out/index.js', base)
-
-  const artifacts = []
-
-  for await (const artifact of stow(entry, 'react-native', out, { base })) {
-    artifacts.push(artifact)
-  }
-
-  t.alike(artifacts, [{ url: out }, { url: new URL('out/index.bundle.mjs', base) }])
-})
-
-test('stow pear-runtime yields harness + bundle', async (t) => {
-  const base = new URL('basic/', fixtures)
-  const entry = new URL('core.js', base)
-  const out = new URL('out/index.js', base)
-
-  const artifacts = []
-
-  for await (const artifact of stow(entry, 'pear-runtime', out, { base })) {
-    artifacts.push(artifact)
-  }
-
-  t.alike(artifacts, [{ url: out }, { url: new URL('out/index.bundle', base) }])
-})
 
 test('stow bare-sidecar yields harness + bundle', async (t) => {
   const base = new URL('basic/', fixtures)
@@ -51,7 +23,11 @@ test('stow bare-sidecar yields harness + bundle', async (t) => {
     artifacts.push(artifact)
   }
 
-  t.alike(artifacts, [{ url: out }, { url: new URL('out/index.bundle', base) }])
+  t.alike(artifacts, [
+    { url: out },
+    { url: new URL('out/index.d.ts', base) },
+    { url: new URL('out/index.bundle', base) }
+  ])
 })
 
 test('stow throws without target', async (t) => {
@@ -88,7 +64,11 @@ test('stow accepts a subset of target hosts', async (t) => {
     artifacts.push(artifact)
   }
 
-  t.alike(artifacts, [{ url: out }, { url: new URL('out/index.bundle', base) }])
+  t.alike(artifacts, [
+    { url: out },
+    { url: new URL('out/index.d.ts', base) },
+    { url: new URL('out/index.bundle', base) }
+  ])
 })
 
 test('stow reroots offloaded assets resolved outside base', async (t) => {
@@ -104,6 +84,7 @@ test('stow reroots offloaded assets resolved outside base', async (t) => {
 
   t.alike(artifacts, [
     { url: out },
+    { url: new URL('out/index.d.ts', base) },
     { url: new URL('out/index.bundle', base) },
     { url: new URL('out/node_modules/dummy/asset.txt', base) }
   ])

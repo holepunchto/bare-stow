@@ -1,12 +1,17 @@
 import URL from 'bare-url'
 
-type TargetName = 'react-native' | 'pear-runtime' | 'bare-sidecar'
+interface Artifact {
+  extension?: string
+  source: string
+}
+
+type TargetName = 'bare-sidecar'
 
 interface TargetContext {
   bundleSpecifier: string
   ipc: string
   rpc: string
-  client: string | null
+  client: RPCClient | null
 }
 
 interface Target {
@@ -18,7 +23,7 @@ interface Target {
   extension: string
   module: 'esm' | 'cjs'
   hosts: string[]
-  generate(context: TargetContext): string
+  generate(context: TargetContext): Artifact[]
 }
 
 type RPCName = 'bare-rpc'
@@ -32,7 +37,12 @@ interface RPCContext {
 
 interface RPC {
   name: string
-  generate(context: RPCContext): string
+  generate(context: RPCContext): Artifact[]
+}
+
+interface RPCClient {
+  source: string
+  type: string
 }
 
 interface StowOptions {
@@ -63,6 +73,8 @@ declare namespace stow {
     type RPC,
     type RPCName,
     type RPCContext,
+    type RPCClient,
+    type Artifact,
     type StowOptions,
     type StowArtifact
   }
