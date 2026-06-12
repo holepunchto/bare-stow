@@ -1,6 +1,6 @@
 import URL from 'bare-url'
 
-type TargetName = 'react-native' | 'pear-runtime' | 'node'
+type TargetName = 'react-native' | 'pear-runtime' | 'bare-sidecar'
 
 interface TargetContext {
   bundleSpecifier: string

@@ -16,15 +16,15 @@ test('harness pear-runtime', (t) => {
   t.snapshot(generate(target, './core.bundle'))
 })
 
-test('harness node', (t) => {
-  const target = harness('node')
+test('harness bare-sidecar', (t) => {
+  const target = harness('bare-sidecar')
 
   t.is(target.format, 'bundle')
   t.snapshot(generate(target, './core.bundle'))
 })
 
-test('harness node with bare-rpc client', (t) => {
-  const target = harness('node')
+test('harness bare-sidecar with bare-rpc client', (t) => {
+  const target = harness('bare-sidecar')
 
   t.snapshot(generate(target, './core.bundle', client(target)))
 })
@@ -42,7 +42,7 @@ test('harness pear-runtime with bare-rpc client', (t) => {
 })
 
 test('harness accepts a target provider object', (t) => {
-  const provided = harness('node')
+  const provided = harness('bare-sidecar')
 
   t.is(harness(provided), provided)
 })

@@ -40,14 +40,14 @@ test('stow pear-runtime yields harness + bundle', async (t) => {
   t.alike(artifacts, [{ url: out }, { url: new URL('out/index.bundle', base) }])
 })
 
-test('stow node yields harness + bundle', async (t) => {
+test('stow bare-sidecar yields harness + bundle', async (t) => {
   const base = new URL('basic/', fixtures)
   const entry = new URL('core.js', base)
   const out = new URL('out/index.js', base)
 
   const artifacts = []
 
-  for await (const artifact of stow(entry, 'node', out, { base })) {
+  for await (const artifact of stow(entry, 'bare-sidecar', out, { base })) {
     artifacts.push(artifact)
   }
 
@@ -68,7 +68,7 @@ test('stow throws without target', async (t) => {
 
 test('stow throws without out', async (t) => {
   await t.exception(async () => {
-    for await (const _ of stow(new URL('basic/core.js', fixtures), 'node')) {
+    for await (const _ of stow(new URL('basic/core.js', fixtures), 'bare-sidecar')) {
       //
     }
   }, /'out' is required/)
@@ -81,7 +81,7 @@ test('stow accepts a subset of target hosts', async (t) => {
 
   const artifacts = []
 
-  for await (const artifact of stow(entry, 'node', out, {
+  for await (const artifact of stow(entry, 'bare-sidecar', out, {
     base,
     hosts: ['darwin-arm64']
   })) {
@@ -98,7 +98,7 @@ test('stow reroots offloaded assets resolved outside base', async (t) => {
 
   const artifacts = []
 
-  for await (const artifact of stow(entry, 'node', out, { base })) {
+  for await (const artifact of stow(entry, 'bare-sidecar', out, { base })) {
     artifacts.push(artifact)
   }
 
@@ -115,11 +115,11 @@ test('stow throws for host not supported by target', async (t) => {
   const out = new URL('out/index.js', base)
 
   await t.exception(async () => {
-    for await (const _ of stow(entry, 'node', out, {
+    for await (const _ of stow(entry, 'bare-sidecar', out, {
       base,
       hosts: ['ios-arm64']
     })) {
       //
     }
-  }, /Host 'ios-arm64' is not supported by target 'node'/)
+  }, /Host 'ios-arm64' is not supported by target 'bare-sidecar'/)
 })
