@@ -19,7 +19,8 @@ module.exports = {
 }
 `
 
-exports['harness bare-sidecar - types - 0'] = `export function start(opts?: import('bare-sidecar').SidecarOptions): Promise<{ ipc: import('bare-stow/host').IPC }>
+exports['harness bare-sidecar - types - 0'] =
+  `export function start(opts?: import('bare-sidecar').SidecarOptions): Promise<{ ipc: import('bare-stow/host').IPC }>
 `
 
 exports['harness bare-sidecar with bare-rpc client - harness - 0'] = `const path = require('path')
@@ -48,7 +49,8 @@ module.exports = {
 }
 `
 
-exports['harness bare-sidecar with bare-rpc client - types - 0'] = `export function start(opts?: import('bare-sidecar').SidecarOptions): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
+exports['harness bare-sidecar with bare-rpc client - types - 0'] =
+  `export function start(opts?: import('bare-sidecar').SidecarOptions): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
 `
 
 /* eslint-enable */

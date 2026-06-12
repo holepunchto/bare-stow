@@ -51,7 +51,8 @@ try {
 }
 `
 
-exports['shim with bare-rpc server - should match snapshot - 0'] = `import protocol from 'bare-stow/protocol'
+exports['shim with bare-rpc server - should match snapshot - 0'] =
+  `import protocol from 'bare-stow/protocol'
 
 const ipc = protocol.attach(Bare.IPC)
 
