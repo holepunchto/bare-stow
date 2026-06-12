@@ -104,7 +104,8 @@ try {
 }
 `
 
-exports['shim node - should match snapshot - 0'] = `import protocol from 'bare-stow/protocol'
+exports['shim bare-sidecar - should match snapshot - 0'] =
+  `import protocol from 'bare-stow/protocol'
 
 const ipc = protocol.attach(Bare.IPC)
 
@@ -214,7 +215,7 @@ try {
 }
 `
 
-exports['shim node with bare-rpc server - should match snapshot - 0'] =
+exports['shim bare-sidecar with bare-rpc server - should match snapshot - 0'] =
   `import protocol from 'bare-stow/protocol'
 
 const ipc = protocol.attach(Bare.IPC)

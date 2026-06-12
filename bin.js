@@ -11,7 +11,7 @@ const cmd = command(
   summary(pkg.description),
   arg('<entry>', 'The entry point of the module graph'),
   flag('--version|-v', 'Print the current version'),
-  flag('--target <name>', 'The target runtime (react-native, pear-runtime, node)'),
+  flag('--target <name>', 'The target runtime (react-native, pear-runtime, bare-sidecar)'),
   flag('--client <name>', 'The RPC client harness to include (e.g. bare-rpc)'),
   flag('--server <name>', 'The RPC server harness to include (e.g. bare-rpc)'),
   flag('--base <path>', 'The base path of the bundle'),

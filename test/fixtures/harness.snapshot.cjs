@@ -36,7 +36,7 @@ module.exports = {
 }
 `
 
-exports['harness node - should match snapshot - 0'] = `const path = require('path')
+exports['harness bare-sidecar - should match snapshot - 0'] = `const path = require('path')
 const Sidecar = require('bare-sidecar')
 const stow = require('bare-stow/host')
 
@@ -55,7 +55,7 @@ module.exports = {
 }
 `
 
-exports['harness node with bare-rpc client - should match snapshot - 0'] =
+exports['harness bare-sidecar with bare-rpc client - should match snapshot - 0'] =
   `const path = require('path')
 const Sidecar = require('bare-sidecar')
 const stow = require('bare-stow/host')

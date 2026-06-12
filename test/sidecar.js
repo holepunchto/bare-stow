@@ -113,7 +113,7 @@ async function bundle(name) {
   const entry = new URL('core.js', base)
   const out = new URL('out/index.js', base)
 
-  for await (const _ of stow(entry, 'node', out, { base })) {
+  for await (const _ of stow(entry, 'bare-sidecar', out, { base })) {
     //
   }
 

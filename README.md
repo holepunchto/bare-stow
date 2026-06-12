@@ -30,7 +30,7 @@ module.exports = async function start(ipc, ready) {
 
 The `ipc` argument is a duplex byte stream. Anything written to it is delivered to the host, and `'data'` events fire when the host writes back.
 
-Stow it for the `node` target:
+Stow it for the `bare-sidecar` target:
 
 ```js
 const stow = require('bare-stow')
@@ -38,7 +38,7 @@ const stow = require('bare-stow')
 const entry = new URL('file:///app/core.js')
 const out = new URL('file:///app/out/index.js')
 
-for await (const artifact of stow(entry, 'node', out)) {
+for await (const artifact of stow(entry, 'bare-sidecar', out)) {
   console.log(artifact.url.href)
 }
 ```
@@ -46,7 +46,7 @@ for await (const artifact of stow(entry, 'node', out)) {
 Or equivalently from the command line:
 
 ```console
-$ bare-stow --target node --out ./out/index.js ./core.js
+$ bare-stow --target bare-sidecar --out ./out/index.js ./core.js
 ```
 
 This writes the harness to `out` and the bundle alongside it. The harness can then be required from the host and booted with `start()`. The harness awaits the worker's `ready` signal before resolving, so by the time `start()` returns the bundle is up:
@@ -118,7 +118,7 @@ await ipc.ready
 
 Bundle the module graph rooted at `entry` for a `target` runtime and write the resulting artifacts to disk at and alongside `out`. Returns an async generator that yields `{ url }` objects as each artifact is written, allowing callers to observe progress.
 
-`entry` is a `URL` (or `URL`-coercible string) pointing at the entry module. `target` selects the target runtime, given either as a built-in name (one of `'react-native'`, `'pear-runtime'`, or `'node'`) or as a [target provider](#targets-and-rpc-providers) object. It determines the harness format, bundle extension, host triples, and whether assets and addons are linked into the bundle or offloaded as sibling files. `out` is the output `URL` of the harness; the bundle is written next to it with the target's extension.
+`entry` is a `URL` (or `URL`-coercible string) pointing at the entry module. `target` selects the target runtime, given either as a built-in name (one of `'react-native'`, `'pear-runtime'`, or `'bare-sidecar'`) or as a [target provider](#targets-and-rpc-providers) object. It determines the harness format, bundle extension, host triples, and whether assets and addons are linked into the bundle or offloaded as sibling files. `out` is the output `URL` of the harness; the bundle is written next to it with the target's extension.
 
 The first artifact yielded is the harness at `out`; the second is the bundle alongside it; any further yields are offloaded assets and native addons when the target supports offloading.
 
@@ -203,13 +203,13 @@ Stow the module graph rooted at `<entry>`, writing the harness and bundle to the
 
 ##### `--target <name>`
 
-The target runtime. One of `react-native`, `pear-runtime`, or `node`. Required.
+The target runtime. One of `react-native`, `pear-runtime`, or `bare-sidecar`. Required.
 
 | Target         | Format       | Extension     | Linked | Offload |
 | -------------- | ------------ | ------------- | ------ | ------- |
 | `react-native` | `bundle.mjs` | `.bundle.mjs` | Yes    | No      |
 | `pear-runtime` | `bundle`     | `.bundle`     | No     | Yes     |
-| `node`         | `bundle`     | `.bundle`     | No     | Yes     |
+| `bare-sidecar` | `bundle`     | `.bundle`     | No     | Yes     |
 
 ##### `--client <name>` and `--server <name>`
 

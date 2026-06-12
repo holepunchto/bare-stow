@@ -13,7 +13,7 @@ test('shim pear-runtime', (t) => {
   t.snapshot(shim(new URL(`${root}/app/entry.js`), new URL(`${root}/app/__main__.js`)))
 })
 
-test('shim node', (t) => {
+test('shim bare-sidecar', (t) => {
   t.snapshot(shim(new URL(`${root}/app/entry.js`), new URL(`${root}/app/__main__.js`)))
 })
 
@@ -25,7 +25,7 @@ test('shim react-native with bare-rpc server', (t) => {
   )
 })
 
-test('shim node with bare-rpc server', (t) => {
+test('shim bare-sidecar with bare-rpc server', (t) => {
   t.snapshot(
     shim(new URL(`${root}/app/entry.js`), new URL(`${root}/app/__main__.js`), {
       server: server()
