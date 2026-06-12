@@ -11,9 +11,18 @@ const cmd = command(
   summary(pkg.description),
   arg('<entry>', 'The entry point of the module graph'),
   flag('--version|-v', 'Print the current version'),
-  flag('--target <name>', 'The target runtime (react-native, pear-runtime, bare-sidecar)'),
-  flag('--client <name>', 'The RPC client harness to include (e.g. bare-rpc)'),
-  flag('--server <name>', 'The RPC server harness to include (e.g. bare-rpc)'),
+  flag(
+    '--target <name>',
+    'The target runtime (bare-sidecar, or a bare-stow-target-<name> package)'
+  ),
+  flag(
+    '--client <name>',
+    'The RPC client to include (bare-rpc, or a bare-stow-rpc-<name> package)'
+  ),
+  flag(
+    '--server <name>',
+    'The RPC server to include (bare-rpc, or a bare-stow-rpc-<name> package)'
+  ),
   flag('--base <path>', 'The base path of the bundle'),
   flag('--out|-o <path>', 'The output path of the harness'),
   flag('--builtins <path>', 'A list of builtin modules'),
@@ -61,6 +70,8 @@ const cmd = command(
       server,
       base,
       hosts,
+      resolveTarget,
+      resolveRPC,
       resolve: resolve.bare,
       builtins,
       imports,
@@ -70,5 +81,29 @@ const cmd = command(
     }
   }
 )
+
+// Built-in names are resolved by bare-stow itself; any other name is loaded
+// from its `bare-stow-target-<name>` / `bare-stow-rpc-<name>` package, or as a
+// full module specifier, resolved from the working directory.
+
+function resolveTarget(name) {
+  return load('bare-stow-target', name)
+}
+
+function resolveRPC(name) {
+  return load('bare-stow-rpc', name)
+}
+
+function load(prefix, name) {
+  for (const specifier of [`${prefix}-${name}`, name]) {
+    try {
+      return require(require.resolve(specifier, { paths: [process.cwd()] }))
+    } catch {
+      continue
+    }
+  }
+
+  throw new Error(`Cannot resolve '${name}'`)
+}
 
 cmd.parse()

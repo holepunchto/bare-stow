@@ -1,5 +1,5 @@
 const test = require('brittle')
-const { Duplex } = require('streamx')
+const { Duplex } = require('bare-stream')
 const protocol = require('../lib/protocol')
 const host = require('../lib/host')
 
@@ -95,22 +95,22 @@ function pair() {
   let a, b
 
   a = new Duplex({
-    write(data, cb) {
+    write(data, encoding, cb) {
       b.push(Buffer.from(data))
       cb(null)
     },
-    destroy(cb) {
+    destroy(err, cb) {
       if (!b.destroyed) b.destroy()
       cb(null)
     }
   })
 
   b = new Duplex({
-    write(data, cb) {
+    write(data, encoding, cb) {
       a.push(Buffer.from(data))
       cb(null)
     },
-    destroy(cb) {
+    destroy(err, cb) {
       if (!a.destroyed) a.destroy()
       cb(null)
     }

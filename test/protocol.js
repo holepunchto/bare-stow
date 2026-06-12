@@ -1,5 +1,5 @@
 const test = require('brittle')
-const { Duplex } = require('streamx')
+const { Duplex } = require('bare-stream')
 const protocol = require('../lib/protocol')
 
 test('protocol round-trips user frames', (t) => {
@@ -44,14 +44,14 @@ function pair() {
   let a, b
 
   a = new Duplex({
-    write(data, cb) {
+    write(data, encoding, cb) {
       b.push(Buffer.from(data))
       cb(null)
     }
   })
 
   b = new Duplex({
-    write(data, cb) {
+    write(data, encoding, cb) {
       a.push(Buffer.from(data))
       cb(null)
     }

@@ -5,7 +5,7 @@ const { resolve } = require('bare-module-traverse')
 const id = require('bare-bundle-id')
 const fs = require('./lib/fs')
 const shim = require('./lib/shim')
-const harness = require('./lib/harness')
+const harness = require('./lib/target')
 const rpc = require('./lib/rpc')
 
 module.exports = async function* stow(entry, target, out, opts = {}) {
@@ -34,20 +34,25 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   const shimURL = shim.url(base)
 
+  // The server only contributes runtime wiring to the shim; the shim is not a
+  // typed, host-facing module so it has no declaration artifact.
   const serverSetup = server
-    ? rpc(server, resolveRPC).generate({
-        ipc: 'ipc',
-        rpc: 'rpc',
-        module: 'esm',
-        role: 'server'
-      })
+    ? fragment(
+        rpc(server, resolveRPC).generate({
+          ipc: 'ipc',
+          rpc: 'rpc',
+          module: 'esm',
+          role: 'server'
+        }),
+        null
+      )
     : null
 
   const shimSource = shim(entry, shimURL, { server: serverSetup })
 
   const readModule = wrapReadModule(fs.readModule, shimURL, shimSource)
 
-  const bundleURL = bundleURLFor(out, t)
+  const bundleURL = siblingURL(out, t.extension)
   const bundleSpecifier = relativeSpecifier(out, bundleURL)
 
   const offloaded = []
@@ -73,24 +78,40 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   bundle.id = id(bundle).toString('hex')
 
-  const clientSetup = client
-    ? rpc(client, resolveRPC).generate({
-        ipc: 'ipc',
-        rpc: 'rpc',
-        module: t.module,
-        role: 'client'
-      })
-    : null
+  // The client contributes both runtime wiring (spliced into the harness) and a
+  // type expression (spliced into the harness declaration), so it is resolved
+  // into both channels before handing it to the target.
+  let clientSetup = null
 
-  const harnessSource = t.generate({
+  if (client) {
+    const artifacts = rpc(client, resolveRPC).generate({
+      ipc: 'ipc',
+      rpc: 'rpc',
+      module: t.module,
+      role: 'client'
+    })
+
+    clientSetup = {
+      source: fragment(artifacts, null),
+      type: fragment(artifacts, '.d.ts')
+    }
+  }
+
+  const artifacts = t.generate({
     bundleSpecifier,
     ipc: 'ipc',
     rpc: 'rpc',
     client: clientSetup
   })
 
-  await fs.writeFile(out, harnessSource)
-  yield { url: out }
+  // The first artifact is the harness written to `out`; any further artifacts
+  // are siblings named after `out` with the artifact's own extension.
+  for (const artifact of artifacts) {
+    const url = artifact.extension ? siblingURL(out, artifact.extension) : out
+
+    await fs.writeFile(url, artifact.source)
+    yield { url }
+  }
 
   await fs.writeFile(bundleURL, encodeBundle(bundle, t.format, t.encoding ?? 'utf8'))
   yield { url: bundleURL }
@@ -138,11 +159,19 @@ function collectOffloaded(base, out, sink) {
   }
 }
 
-function bundleURLFor(out, target) {
+function siblingURL(out, extension) {
   const dir = new URL('./', out)
   const base = path.basename(out.pathname, path.extname(out.pathname))
 
-  return new URL(base + target.extension, dir)
+  return new URL(base + extension, dir)
+}
+
+function fragment(artifacts, extension) {
+  for (const artifact of artifacts) {
+    if ((artifact.extension ?? null) === extension) return artifact.source
+  }
+
+  return null
 }
 
 function relativeSpecifier(from, to) {
