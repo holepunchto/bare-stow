@@ -6,14 +6,17 @@ const id = require('bare-bundle-id')
 const fs = require('./lib/fs')
 const shim = require('./lib/shim')
 const harness = require('./lib/harness')
+const rpc = require('./lib/rpc')
 
 module.exports = async function* stow(entry, target, out, opts = {}) {
   if (!target) throw new Error("'target' is required")
   if (!out) throw new Error("'out' is required")
 
-  let { client, server, base, hosts, ...packOpts } = opts
+  let { client, server, base, hosts, resolveTarget, resolveRPC, ...packOpts } = opts
 
-  const t = harness(target)
+  const t = harness(target, resolveTarget)
+
+  const targetName = typeof target === 'string' ? target : t.name
 
   entry = new URL(entry)
   out = new URL(out)
@@ -22,7 +25,7 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
   if (hosts) {
     for (const host of hosts) {
       if (!t.hosts.includes(host)) {
-        throw new Error(`Host '${host}' is not supported by target '${target}'`)
+        throw new Error(`Host '${host}' is not supported by target '${targetName}'`)
       }
     }
   } else {
@@ -30,7 +33,17 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
   }
 
   const shimURL = shim.url(base)
-  const shimSource = shim(entry, shimURL, { server })
+
+  const serverSetup = server
+    ? rpc(server, resolveRPC).generate({
+        ipc: 'ipc',
+        rpc: 'rpc',
+        module: 'esm',
+        role: 'server'
+      })
+    : null
+
+  const shimSource = shim(entry, shimURL, { server: serverSetup })
 
   const readModule = wrapReadModule(fs.readModule, shimURL, shimSource)
 
@@ -60,7 +73,21 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   bundle.id = id(bundle).toString('hex')
 
-  const harnessSource = t.generate({ bundleSpecifier, client })
+  const clientSetup = client
+    ? rpc(client, resolveRPC).generate({
+        ipc: 'ipc',
+        rpc: 'rpc',
+        module: t.module,
+        role: 'client'
+      })
+    : null
+
+  const harnessSource = t.generate({
+    bundleSpecifier,
+    ipc: 'ipc',
+    rpc: 'rpc',
+    client: clientSetup
+  })
 
   await fs.writeFile(out, harnessSource)
   yield { url: out }

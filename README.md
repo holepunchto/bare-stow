@@ -118,7 +118,7 @@ await ipc.ready
 
 Bundle the module graph rooted at `entry` for a `target` runtime and write the resulting artifacts to disk at and alongside `out`. Returns an async generator that yields `{ url }` objects as each artifact is written, allowing callers to observe progress.
 
-`entry` is a `URL` (or `URL`-coercible string) pointing at the entry module. `target` is the target runtime: One of `'react-native'`, `'pear-runtime'`, or `'node'`. It determines the harness format, bundle extension, host triples, and whether assets and addons are linked into the bundle or offloaded as sibling files. `out` is the output `URL` of the harness; the bundle is written next to it with the target's extension.
+`entry` is a `URL` (or `URL`-coercible string) pointing at the entry module. `target` selects the target runtime, given either as a built-in name (one of `'react-native'`, `'pear-runtime'`, or `'node'`) or as a [target provider](#targets-and-rpc-providers) object. It determines the harness format, bundle extension, host triples, and whether assets and addons are linked into the bundle or offloaded as sibling files. `out` is the output `URL` of the harness; the bundle is written next to it with the target's extension.
 
 The first artifact yielded is the harness at `out`; the second is the bundle alongside it; any further yields are offloaded assets and native addons when the target supports offloading.
 
@@ -129,16 +129,57 @@ opts = {
   client,
   server,
   base,
-  hosts
+  hosts,
+  resolveTarget,
+  resolveRPC
 }
 ```
 
-- `client`: Name of the RPC library to wire into the harness as a client. Currently only `'bare-rpc'` is supported.
-- `server`: Name of the RPC library to wire into the bundle entry shim as a server. Currently only `'bare-rpc'` is supported.
+- `client`: The RPC library to wire into the harness as a client, given either as a built-in name (`'bare-rpc'`) or as an [RPC provider](#targets-and-rpc-providers) object.
+- `server`: The RPC library to wire into the bundle entry shim as a server, given either as a built-in name (`'bare-rpc'`) or as an [RPC provider](#targets-and-rpc-providers) object.
 - `base`: The base `URL` of the module graph. Defaults to the directory containing `entry`.
 - `hosts`: An array of host triples to build for. Must be a subset of the host triples supported by the target; passing a host the target does not support throws. Defaults to all host triples supported by the target.
+- `resolveTarget`: A function mapping a target name to a [target provider](#targets-and-rpc-providers) object, called when `target` is a name. Defaults to the built-in target registry.
+- `resolveRPC`: A function mapping an RPC library name to an [RPC provider](#targets-and-rpc-providers) object, called when `client` or `server` is a name. Defaults to the built-in RPC registry.
 
 Any additional options are forwarded to `bare-pack`. See <https://github.com/holepunchto/bare-pack> for the full set, including `builtins`, `imports`, `defer`, and `resolve`.
+
+### Targets and RPC providers
+
+The harness and RPC code generators are decoupled from the bundler: `target`, `client`, and `server` each accept a provider object directly, so generators can live outside `bare-stow`. Passing a name instead resolves it through `resolveTarget` / `resolveRPC`, which default to the built-in registries.
+
+A target provider describes the runtime profile it owns and generates the harness that boots the bundle from the host:
+
+```js
+target = {
+  name, // The target's name, used in diagnostics.
+  linked, // Whether assets and addons are linked into the bundle.
+  offload, // Whether (and which) assets and addons are offloaded as sibling files.
+  format, // The bundle encoding: 'bundle', 'bundle.cjs', 'bundle.mjs', or 'bundle.json'.
+  encoding, // The string encoding for encoded formats, or null for raw bytes.
+  extension, // The bundle file extension, e.g. '.bundle'.
+  module, // The harness module system: 'esm' or 'cjs'.
+  hosts, // The host triples the target supports.
+  generate({ bundleSpecifier, ipc, rpc, client }) {
+    // Return the harness source as a string.
+  }
+}
+```
+
+`generate()` receives `bundleSpecifier`, the relative specifier from the harness to the bundle artifact; `ipc`, the identifier the harness should bind the IPC stream to; `rpc`, the identifier the RPC client setup binds its instance to; and `client`, the pre-rendered RPC client setup as a string (referencing `ipc` and binding `rpc`) or `null` when no client is requested. The target owns `linked`, `offload`, `format`, `encoding`, and `extension`; they are not overridable through `opts`.
+
+An RPC provider generates the setup snippet that binds an RPC instance to the IPC stream, used on both the client (harness) and server (shim) side:
+
+```js
+rpc = {
+  name, // The library's name, used in diagnostics.
+  generate({ ipc, rpc, module, role }) {
+    // Return the setup source as a string, reading `ipc` and binding `rpc`.
+  }
+}
+```
+
+`generate()` receives `ipc`, the identifier of the IPC stream in scope; `rpc`, the identifier to bind the RPC instance to; `module`, the surrounding module system (`'esm'` or `'cjs'`) so the snippet can emit the matching import form; and `role`, either `'client'` or `'server'`. The bundler owns the `ipc` and `rpc` binding names and threads them to both the target and the RPC provider so neither has to assume them. It renders the client snippet in the target's `module` and the server snippet as `'esm'` (the shim is always an ES module), then hands the result to the target's `generate()` and the shim respectively.
 
 ## CLI
 

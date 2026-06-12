@@ -1,14 +1,47 @@
 import URL from 'bare-url'
 
-type Runtime = 'react-native' | 'pear-runtime' | 'node'
+type TargetName = 'react-native' | 'pear-runtime' | 'node'
 
-type RPC = 'bare-rpc'
+interface TargetContext {
+  bundleSpecifier: string
+  ipc: string
+  rpc: string
+  client: string | null
+}
+
+interface Target {
+  name: string
+  linked: boolean
+  offload: boolean | { addons?: boolean; assets?: boolean }
+  format: 'bundle' | 'bundle.cjs' | 'bundle.mjs' | 'bundle.json'
+  encoding: string | null
+  extension: string
+  module: 'esm' | 'cjs'
+  hosts: string[]
+  generate(context: TargetContext): string
+}
+
+type RPCName = 'bare-rpc'
+
+interface RPCContext {
+  ipc: string
+  rpc: string
+  module: 'esm' | 'cjs'
+  role: 'client' | 'server'
+}
+
+interface RPC {
+  name: string
+  generate(context: RPCContext): string
+}
 
 interface StowOptions {
-  client?: RPC
-  server?: RPC
+  client?: RPC | RPCName
+  server?: RPC | RPCName
   base?: URL | string
   hosts?: string[]
+  resolveTarget?(name: string): Target
+  resolveRPC?(name: string): RPC
 }
 
 interface StowArtifact {
@@ -17,13 +50,22 @@ interface StowArtifact {
 
 declare function stow(
   entry: URL | string,
-  target: Runtime,
+  target: Target | TargetName,
   out: URL | string,
   opts?: StowOptions
 ): AsyncGenerator<StowArtifact>
 
 declare namespace stow {
-  export { type Runtime, type RPC, type StowOptions, type StowArtifact }
+  export {
+    type Target,
+    type TargetName,
+    type TargetContext,
+    type RPC,
+    type RPCName,
+    type RPCContext,
+    type StowOptions,
+    type StowArtifact
+  }
 }
 
 export = stow

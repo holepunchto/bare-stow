@@ -6,6 +6,7 @@ const stow = require('.')
 const fixtures = pathToFileURL(path.join(__dirname, 'test/fixtures') + '/')
 
 require('./test/harness')
+require('./test/rpc')
 require('./test/host')
 require('./test/protocol')
 require('./test/shim')

@@ -95,7 +95,7 @@ export default {
 
     const ipc = stow.wrap(worklet.IPC)
 
-    const RPC = require('bare-rpc')
+    import RPC from 'bare-rpc'
 
     const router = new RPC.CommandRouter()
     const rpc = new RPC(ipc, router)
