@@ -1,54 +1,69 @@
 const test = require('brittle')
 const harness = require('../lib/harness')
+const rpc = require('../lib/rpc')
 
 test('harness react-native', (t) => {
   const target = harness('react-native')
 
   t.is(target.format, 'bundle.mjs')
-  t.snapshot(target.generate({ bundleSpecifier: './core.bundle.mjs' }))
+  t.snapshot(generate(target, './core.bundle.mjs'))
 })
 
 test('harness pear-runtime', (t) => {
   const target = harness('pear-runtime')
 
   t.is(target.format, 'bundle')
-  t.snapshot(target.generate({ bundleSpecifier: './core.bundle' }))
+  t.snapshot(generate(target, './core.bundle'))
 })
 
 test('harness node', (t) => {
   const target = harness('node')
 
   t.is(target.format, 'bundle')
-  t.snapshot(target.generate({ bundleSpecifier: './core.bundle' }))
+  t.snapshot(generate(target, './core.bundle'))
 })
 
 test('harness node with bare-rpc client', (t) => {
   const target = harness('node')
 
-  t.snapshot(target.generate({ bundleSpecifier: './core.bundle', client: 'bare-rpc' }))
+  t.snapshot(generate(target, './core.bundle', client(target)))
 })
 
 test('harness react-native with bare-rpc client', (t) => {
   const target = harness('react-native')
 
-  t.snapshot(target.generate({ bundleSpecifier: './core.bundle.mjs', client: 'bare-rpc' }))
+  t.snapshot(generate(target, './core.bundle.mjs', client(target)))
 })
 
 test('harness pear-runtime with bare-rpc client', (t) => {
   const target = harness('pear-runtime')
 
-  t.snapshot(target.generate({ bundleSpecifier: './core.bundle', client: 'bare-rpc' }))
+  t.snapshot(generate(target, './core.bundle', client(target)))
+})
+
+test('harness accepts a target provider object', (t) => {
+  const provided = harness('node')
+
+  t.is(harness(provided), provided)
 })
 
 test('harness throws for unknown target', (t) => {
   t.exception(() => harness('something-else'), /Unknown target/)
 })
 
-test('harness throws for unknown client', (t) => {
-  const target = harness('node')
-
-  t.exception(
-    () => target.generate({ bundleSpecifier: './core.bundle', client: 'something-else' }),
-    /Unknown RPC library/
-  )
+test('harness throws for an invalid target provider', (t) => {
+  t.exception(() => harness({ hosts: [] }), /generate\(\) function/)
 })
+
+function client(target) {
+  return rpc('bare-rpc').generate({
+    ipc: 'ipc',
+    rpc: 'rpc',
+    module: target.module,
+    role: 'client'
+  })
+}
+
+function generate(target, bundleSpecifier, client = null) {
+  return target.generate({ bundleSpecifier, ipc: 'ipc', rpc: 'rpc', client })
+}
