@@ -144,6 +144,10 @@ opts = {
 
 Any additional options are forwarded to `bare-pack`. See <https://github.com/holepunchto/bare-pack> for the full set, including `builtins`, `imports`, `defer`, and `resolve`.
 
+#### TypeScript
+
+TypeScript modules are supported out of the box: `.ts`, `.mts`, and `.cts` sources are stripped of their type syntax with [`bare-type-stripper`](https://github.com/holepunchto/bare-type-stripper) as they are read, and their extensions are aliased to `.js`, `.mjs`, and `.cjs` respectively for module-type detection. The stripper only erases types, so the module system follows the aliased JavaScript extension. Because stripping is purely lexical, non-erasable constructs (`enum`, `namespace` with a body, parameter properties) throw, and JSX (`.tsx`) is not supported.
+
 ### Targets and RPC providers
 
 The harness and RPC code generators are decoupled from the bundler: `target`, `client`, and `server` each accept a provider object directly, so generators can live outside `bare-stow`. Passing a name instead resolves it through `resolveTarget` / `resolveRPC`, which default to the built-in registries.
