@@ -41,7 +41,7 @@ Bare
 
 try {
   const entry = await import("./entry.js")
-  const start = entry.default || entry
+  const start = entry.default
 
   stop = await start(ipc, ready) || null
 
@@ -100,7 +100,7 @@ Bare
 
 try {
   const entry = await import("./entry.js")
-  const start = entry.default || entry
+  const start = entry.default
 
   stop = await start({ rpc, ipc }, ready) || null
 
