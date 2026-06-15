@@ -30,6 +30,24 @@ test('stow bare-sidecar yields harness + bundle', async (t) => {
   ])
 })
 
+test('stow strips types from a TypeScript entry', async (t) => {
+  const base = new URL('typescript/', fixtures)
+  const entry = new URL('core.ts', base)
+  const out = new URL('out/index.js', base)
+
+  const artifacts = []
+
+  for await (const artifact of stow(entry, 'bare-sidecar', out, { base })) {
+    artifacts.push(artifact)
+  }
+
+  t.alike(artifacts, [
+    { url: out },
+    { url: new URL('out/index.d.ts', base) },
+    { url: new URL('out/index.bundle', base) }
+  ])
+})
+
 test('stow throws without target', async (t) => {
   await t.exception(async () => {
     for await (const _ of stow(

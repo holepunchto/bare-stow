@@ -2,7 +2,6 @@
 const path = require('path')
 const { pathToFileURL } = require('url')
 const { command, flag, arg, summary } = require('paparam')
-const { resolve } = require('bare-module-traverse')
 const pkg = require('./package')
 const stow = require('.')
 
@@ -72,7 +71,6 @@ const cmd = command(
       hosts,
       resolveTarget,
       resolveRPC,
-      resolve: resolve.bare,
       builtins,
       imports,
       defer

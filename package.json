@@ -61,10 +61,12 @@
     "bare-bundle": "^1.8.3",
     "bare-bundle-id": "^1.0.0",
     "bare-fs": "^4.2.1",
+    "bare-module-lexer": "^1.5.2",
     "bare-module-traverse": "^2.1.1",
     "bare-pack": "^2.1.0",
     "bare-path": "^3.0.0",
     "bare-stream": "^2.13.1",
+    "bare-type-stripper": "^0.1.2",
     "paparam": "^1.5.0"
   },
   "devDependencies": {

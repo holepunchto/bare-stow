@@ -1,12 +1,13 @@
 const path = require('path')
 const { fileURLToPath } = require('url')
 const pack = require('bare-pack')
-const { resolve } = require('bare-module-traverse')
 const id = require('bare-bundle-id')
+const strip = require('bare-type-stripper')
 const fs = require('./lib/fs')
 const shim = require('./lib/shim')
 const harness = require('./lib/target')
 const rpc = require('./lib/rpc')
+const resolve = require('./lib/resolve')
 
 module.exports = async function* stow(entry, target, out, opts = {}) {
   if (!target) throw new Error("'target' is required")
@@ -64,12 +65,17 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
   const bundle = await pack(
     shimURL,
     {
-      resolve: resolve.bare,
       ...packOpts,
+      resolve,
+      aliases: {
+        '.ts': '.js',
+        '.mts': '.mjs',
+        '.cts': '.cjs'
+      },
+      base,
       hosts,
       linked: t.linked,
-      offload: t.offload,
-      base: base
+      offload: t.offload
     },
     readModule,
     fs.listPrefix,
@@ -130,10 +136,16 @@ function isOffloadEnabled(offload) {
 }
 
 function wrapReadModule(readModule, shimURL, shimSource) {
-  return function (url) {
+  return async function (url) {
     if (url.href === shimURL.href) return shimSource
 
-    return readModule(url)
+    const source = await readModule(url)
+
+    if (source === null) return null
+
+    if (/\.(c|m)?ts$/.test(url.pathname)) return strip(source)
+
+    return source
   }
 }
 
