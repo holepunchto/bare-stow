@@ -40,6 +40,10 @@
     "bin.js",
     "lib"
   ],
+  "workspaces": [
+    "test/fixtures/*",
+    "test/fixtures/*/*"
+  ],
   "scripts": {
     "format": "prettier --write . && lunte --fix",
     "lint": "prettier --check . && lunte",

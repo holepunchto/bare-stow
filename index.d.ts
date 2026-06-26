@@ -11,6 +11,7 @@ interface TargetContext {
   bundleSpecifier: string
   ipc: string
   rpc: string
+  module: 'esm' | 'cjs'
   client: RPCClient | null
 }
 
@@ -21,7 +22,7 @@ interface Target {
   format: 'bundle' | 'bundle.cjs' | 'bundle.mjs' | 'bundle.json'
   encoding: string | null
   extension: string
-  module: 'esm' | 'cjs'
+  module?: 'esm' | 'cjs'
   hosts: string[]
   generate(context: TargetContext): Artifact[]
 }

@@ -1,0 +1,19 @@
+{
+  "name": "bare-stow-fixture-load",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "imports": {
+    "path": {
+      "bare": "bare-path",
+      "default": "path"
+    },
+    "url": {
+      "bare": "bare-url",
+      "default": "url"
+    }
+  },
+  "dependencies": {
+    "bare-stow": "file:../../.."
+  }
+}

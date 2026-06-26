@@ -20,6 +20,29 @@ test('sidecar harness echoes user data', async (t) => {
   t.is(code, 0)
 })
 
+test('sidecar esm harness echoes user data', async (t) => {
+  const base = new URL('echo/', fixtures)
+  const entry = new URL('core.js', base)
+  const out = new URL('out/index.mjs', base)
+
+  for await (const _ of stow(entry, 'bare-sidecar', out, { base })) {
+    //
+  }
+
+  const harness = await import(out.href)
+  const { ipc } = await harness.start()
+
+  const echo = new Promise((resolve) => ipc.once('data', resolve))
+
+  ipc.write(Buffer.from('hello'))
+
+  t.alike(await echo, Buffer.from('hello'))
+
+  const code = await ipc.terminate()
+
+  t.is(code, 0)
+})
+
 test('sidecar harness preserves write order', async (t) => {
   const harness = await bundle('echo')
   const { ipc } = await harness.start()

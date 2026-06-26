@@ -5,13 +5,25 @@ const rpc = require('../lib/rpc')
 test('harness bare-sidecar', (t) => {
   const target = harness('bare-sidecar')
 
-  snapshot(t, target, './core.bundle')
+  snapshot(t, target, './core.bundle', 'cjs')
 })
 
 test('harness bare-sidecar with bare-rpc client', (t) => {
   const target = harness('bare-sidecar')
 
-  snapshot(t, target, './core.bundle', client(target))
+  snapshot(t, target, './core.bundle', 'cjs', client('cjs'))
+})
+
+test('harness bare-sidecar as esm', (t) => {
+  const target = harness('bare-sidecar')
+
+  snapshot(t, target, './core.bundle', 'esm')
+})
+
+test('harness bare-sidecar as esm with bare-rpc client', (t) => {
+  const target = harness('bare-sidecar')
+
+  snapshot(t, target, './core.bundle', 'esm', client('esm'))
 })
 
 test('harness accepts a target provider object', (t) => {
@@ -48,11 +60,11 @@ test('harness throws for an invalid target provider', (t) => {
   t.exception(() => harness({ hosts: [] }), /generate\(\) function/)
 })
 
-function client(target) {
+function client(module) {
   const artifacts = rpc('bare-rpc').generate({
     ipc: 'ipc',
     rpc: 'rpc',
-    module: target.module,
+    module,
     role: 'client'
   })
 
@@ -62,11 +74,12 @@ function client(target) {
   }
 }
 
-function snapshot(t, target, bundleSpecifier, client = null) {
+function snapshot(t, target, bundleSpecifier, module, client = null) {
   const [harness, types] = target.generate({
     bundleSpecifier,
     ipc: 'ipc',
     rpc: 'rpc',
+    module,
     client
   })
 
