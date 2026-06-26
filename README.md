@@ -118,7 +118,7 @@ await ipc.ready
 
 Bundle the module graph rooted at `entry` for a `target` runtime and write the resulting artifacts to disk at and alongside `out`. Returns an async generator that yields `{ url }` objects as each artifact is written, allowing callers to observe progress.
 
-`entry` is a `URL` (or `URL`-coercible string) pointing at the entry module. `target` selects the target runtime, given either as the built-in name `'bare-sidecar'` or as a [target provider](#targets-and-rpc-providers) object. Other targets ship as their own packages; require one and pass it as the provider. The target determines the harness format, bundle extension, host triples, and whether assets and addons are linked into the bundle or offloaded as sibling files. `out` is the output `URL` of the harness; the bundle is written next to it with the target's extension.
+`entry` is a `URL` (or `URL`-coercible string) pointing at the entry module. `target` selects the target runtime, given either as a built-in name (`'bare-sidecar'` or `'bare-worker'`) or as a [target provider](#targets-and-rpc-providers) object. Other targets ship as their own packages; require one and pass it as the provider. The target determines the harness format, bundle extension, host triples, and whether assets and addons are linked into the bundle or offloaded as sibling files. `out` is the output `URL` of the harness; the bundle is written next to it with the target's extension.
 
 The harness artifacts are yielded first: The harness itself at `out`, followed by a TypeScript declaration (`.d.ts`) alongside it so hosts importing the harness are typed. The bundle is yielded next, then any offloaded assets and native addons when the target supports offloading.
 
@@ -139,7 +139,7 @@ opts = {
 - `server`: The RPC library to wire into the bundle entry shim as a server, given either as a built-in name (`'bare-rpc'`) or as an [RPC provider](#targets-and-rpc-providers) object.
 - `base`: The base `URL` of the module graph. Defaults to the directory containing `entry`.
 - `hosts`: An array of host triples to build for. Must be a subset of the host triples supported by the target; passing a host the target does not support throws. Defaults to all host triples supported by the target.
-- `resolveTarget`: A function mapping a target name to a [target provider](#targets-and-rpc-providers) object, called when `target` is a name not in the built-in registry (which only knows `'bare-sidecar'`).
+- `resolveTarget`: A function mapping a target name to a [target provider](#targets-and-rpc-providers) object, called when `target` is a name not in the built-in registry (which knows `'bare-sidecar'` and `'bare-worker'`).
 - `resolveRPC`: A function mapping an RPC library name to an [RPC provider](#targets-and-rpc-providers) object, called when `client` or `server` is a name not in the built-in registry (which only knows `'bare-rpc'`).
 
 Any additional options are forwarded to `bare-pack`. See <https://github.com/holepunchto/bare-pack> for the full set, including `builtins`, `imports`, `defer`, and `resolve`.
@@ -220,7 +220,7 @@ Stow the module graph rooted at `<entry>`, writing the harness and bundle to the
 
 ##### `--target <name>`
 
-The target runtime. Required. The built-in `bare-sidecar` is resolved directly; any other `<name>` is loaded from its `bare-stow-target-<name>` package, or from `<name>` itself as a full module specifier, resolved from the working directory.
+The target runtime. Required. The built-in `bare-sidecar` and `bare-worker` are resolved directly; any other `<name>` is loaded from its `bare-stow-target-<name>` package, or from `<name>` itself as a full module specifier, resolved from the working directory.
 
 ##### `--client <name>` and `--server <name>`
 

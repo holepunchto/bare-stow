@@ -103,4 +103,108 @@ exports['harness bare-sidecar as esm with bare-rpc client - types - 0'] =
   `export function start(opts?: import('bare-sidecar').SidecarOptions): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
 `
 
+exports['harness bare-worker - harness - 0'] = `const path = require('bare-path')
+const Worker = require('bare-worker')
+const stow = require('bare-stow/host')
+
+const bundle = path.join(__dirname, "./core.bundle")
+
+module.exports = {
+  async start(opts = {}) {
+    const worker = new Worker(bundle, opts)
+
+    const ipc = stow.wrap(worker.IPC)
+
+    await ipc.ready
+
+    return { ipc }
+  }
+}
+`
+
+exports['harness bare-worker - types - 0'] =
+  `export function start(opts?: import('bare-worker').WorkerOptions): Promise<{ ipc: import('bare-stow/host').IPC }>
+`
+
+exports['harness bare-worker with bare-rpc client - harness - 0'] =
+  `const path = require('bare-path')
+const Worker = require('bare-worker')
+const stow = require('bare-stow/host')
+
+const bundle = path.join(__dirname, "./core.bundle")
+
+module.exports = {
+  async start(opts = {}) {
+    const worker = new Worker(bundle, opts)
+
+    const ipc = stow.wrap(worker.IPC)
+
+    const RPC = require('bare-rpc')
+
+    const router = new RPC.CommandRouter()
+    const rpc = new RPC(ipc, router)
+
+    rpc.respond = router.respond.bind(router)
+
+    await ipc.ready
+
+    return { ipc, rpc }
+  }
+}
+`
+
+exports['harness bare-worker with bare-rpc client - types - 0'] =
+  `export function start(opts?: import('bare-worker').WorkerOptions): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
+`
+
+exports['harness bare-worker as esm - harness - 0'] = `import Worker from 'bare-worker'
+import stow from 'bare-stow/host'
+import { fileURLToPath } from 'bare-url'
+
+const bundle = fileURLToPath(new URL("./core.bundle", import.meta.url))
+
+export async function start(opts = {}) {
+  const worker = new Worker(bundle, opts)
+
+  const ipc = stow.wrap(worker.IPC)
+
+  await ipc.ready
+
+  return { ipc }
+}
+`
+
+exports['harness bare-worker as esm - types - 0'] =
+  `export function start(opts?: import('bare-worker').WorkerOptions): Promise<{ ipc: import('bare-stow/host').IPC }>
+`
+
+exports['harness bare-worker as esm with bare-rpc client - harness - 0'] =
+  `import Worker from 'bare-worker'
+import stow from 'bare-stow/host'
+import { fileURLToPath } from 'bare-url'
+
+const bundle = fileURLToPath(new URL("./core.bundle", import.meta.url))
+
+export async function start(opts = {}) {
+  const worker = new Worker(bundle, opts)
+
+  const ipc = stow.wrap(worker.IPC)
+
+  const { default: RPC } = await import('bare-rpc')
+
+  const router = new RPC.CommandRouter()
+  const rpc = new RPC(ipc, router)
+
+  rpc.respond = router.respond.bind(router)
+
+  await ipc.ready
+
+  return { ipc, rpc }
+}
+`
+
+exports['harness bare-worker as esm with bare-rpc client - types - 0'] =
+  `export function start(opts?: import('bare-worker').WorkerOptions): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
+`
+
 /* eslint-enable */

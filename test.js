@@ -13,6 +13,7 @@ require('./test/host')
 require('./test/protocol')
 require('./test/shim')
 require('./test/sidecar')
+require('./test/worker')
 
 test('stow bare-sidecar yields harness + bundle', async (t) => {
   const base = new URL('basic/', fixtures)
