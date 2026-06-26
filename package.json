@@ -1,6 +1,6 @@
 {
   "name": "bare-stow",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Module bundling and harness generation for Bare",
   "exports": {
     "./package": "./package.json",
