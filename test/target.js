@@ -26,6 +26,30 @@ test('harness bare-sidecar as esm with bare-rpc client', (t) => {
   snapshot(t, target, './core.bundle', 'esm', client('esm'))
 })
 
+test('harness bare-worker', (t) => {
+  const target = harness('bare-worker')
+
+  snapshot(t, target, './core.bundle', 'cjs')
+})
+
+test('harness bare-worker with bare-rpc client', (t) => {
+  const target = harness('bare-worker')
+
+  snapshot(t, target, './core.bundle', 'cjs', client('cjs'))
+})
+
+test('harness bare-worker as esm', (t) => {
+  const target = harness('bare-worker')
+
+  snapshot(t, target, './core.bundle', 'esm')
+})
+
+test('harness bare-worker as esm with bare-rpc client', (t) => {
+  const target = harness('bare-worker')
+
+  snapshot(t, target, './core.bundle', 'esm', client('esm'))
+})
+
 test('harness accepts a target provider object', (t) => {
   const provided = harness('bare-sidecar')
 

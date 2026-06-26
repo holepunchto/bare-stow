@@ -5,7 +5,7 @@ interface Artifact {
   source: string
 }
 
-type TargetName = 'bare-sidecar'
+type TargetName = 'bare-sidecar' | 'bare-worker'
 
 interface TargetContext {
   bundleSpecifier: string
