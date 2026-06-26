@@ -1,2 +1,3 @@
+index.d.ts
 lib/host.d.ts
 lib/protocol.d.ts

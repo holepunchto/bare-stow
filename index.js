@@ -23,6 +23,9 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
   out = new URL(out)
   base = base ? new URL(base) : new URL('./', entry)
 
+  // The target may pin a module system; otherwise it follows the output path.
+  const module = t.module || (await resolveModule(out))
+
   if (hosts) {
     for (const host of hosts) {
       if (!t.hosts.includes(host)) {
@@ -93,8 +96,8 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
     const artifacts = rpc(client, resolveRPC).generate({
       ipc: 'ipc',
       rpc: 'rpc',
-      module: t.module,
-      role: 'client'
+      role: 'client',
+      module
     })
 
     clientSetup = {
@@ -107,6 +110,7 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
     bundleSpecifier,
     ipc: 'ipc',
     rpc: 'rpc',
+    module,
     client: clientSetup
   })
 
@@ -168,6 +172,39 @@ function collectOffloaded(base, out, sink) {
     sink.push({ url: new URL(relative, dir), source })
 
     return null
+  }
+}
+
+async function resolveModule(out) {
+  switch (path.extname(out.pathname)) {
+    case '.mjs':
+      return 'esm'
+    case '.cjs':
+      return 'cjs'
+  }
+
+  // For an ambiguous extension (e.g. '.js') the module system follows the
+  // `type` of the closest enclosing `package.json`, defaulting to CommonJS.
+  return (await packageType(new URL('./', out))) === 'module' ? 'esm' : 'cjs'
+}
+
+async function packageType(dir) {
+  while (true) {
+    let source = null
+
+    try {
+      source = await fs.readFile(new URL('package.json', dir))
+    } catch {
+      // No `package.json` in this directory; keep searching upwards.
+    }
+
+    if (source !== null) return JSON.parse(source).type ?? null
+
+    const parent = new URL('../', dir)
+
+    if (parent.pathname === dir.pathname) return null
+
+    dir = parent
   }
 }
 

@@ -171,9 +171,9 @@ target = {
   format, // The bundle encoding: 'bundle', 'bundle.cjs', 'bundle.mjs', or 'bundle.json'.
   encoding, // The string encoding for encoded formats, or null for raw bytes.
   extension, // The bundle file extension, e.g. '.bundle'.
-  module, // The harness module system: 'esm' or 'cjs'.
+  module, // Optional. Pins the harness module system to 'esm' or 'cjs'.
   hosts, // The host triples the target supports.
-  generate({ bundleSpecifier, ipc, rpc, client }) {
+  generate({ bundleSpecifier, ipc, rpc, module, client }) {
     // Return an array of harness artifacts.
   }
 }
@@ -181,7 +181,9 @@ target = {
 
 For a target, each artifact is a file. The first has no `extension` and is written to `out`; each remaining artifact is written next to `out` with its own `extension` substituted for the harness extension (e.g. `{ extension: '.d.ts' }` becomes `index.d.ts`). The built-in targets emit two artifacts: The harness and its TypeScript declaration.
 
-`generate()` receives `bundleSpecifier`, the relative specifier from the harness to the bundle artifact; `ipc`, the identifier the harness should bind the IPC stream to; `rpc`, the identifier the RPC client setup binds its instance to; and `client`, the resolved RPC client (or `null` when no client is requested). When present, `client` is `{ source, type }`: `source` is the runtime setup to splice into the harness (referencing `ipc` and binding `rpc`), and `type` is the TypeScript type of the bound instance to splice into the declaration. The target owns `linked`, `offload`, `format`, `encoding`, and `extension`; they are not overridable through `opts`.
+`generate()` receives `bundleSpecifier`, the relative specifier from the harness to the bundle artifact; `ipc`, the identifier the harness should bind the IPC stream to; `rpc`, the identifier the RPC client setup binds its instance to; `module`, the harness module system (`'esm'` or `'cjs'`) so the harness can emit the matching module and import forms; and `client`, the resolved RPC client (or `null` when no client is requested). When present, `client` is `{ source, type }`: `source` is the runtime setup to splice into the harness (referencing `ipc` and binding `rpc`), and `type` is the TypeScript type of the bound instance to splice into the declaration. The target owns `linked`, `offload`, `format`, `encoding`, and `extension`; they are not overridable through `opts`.
+
+The harness `module` system is derived from the output path: `out` ending in `.mjs` is ESM and `.cjs` is CommonJS, while an ambiguous `.js` (or other) extension follows the `type` of the closest enclosing `package.json` (`"module"` is ESM, otherwise CommonJS). A target may set its own `module` to pin the harness to one system regardless of the output path.
 
 An RPC provider generates the wiring that binds an RPC instance to the IPC stream, used on both the client (harness) and server (shim) side:
 
@@ -194,7 +196,7 @@ rpc = {
 }
 ```
 
-For an RPC provider, each artifact is a fragment contributed to the harness file with the matching extension. The artifact with no `extension` is the runtime setup (reading `ipc`, binding `rpc`); the `{ extension: '.d.ts' }` artifact is the TypeScript type of the bound instance. `generate()` receives `ipc`, the identifier of the IPC stream in scope; `rpc`, the identifier to bind the RPC instance to; `module`, the surrounding module system (`'esm'` or `'cjs'`) so the runtime fragment can emit the matching import form; and `role`, either `'client'` or `'server'`. The bundler owns the `ipc` and `rpc` binding names and threads them to both the target and the RPC provider so neither has to assume them. It renders the client in the target's `module` and the server as `'esm'` (the shim is always an ES module), splicing the runtime fragment and, for the client, the type fragment into the target's artifacts. The shim is not a typed, host-facing module, so the server's type fragment is unused.
+For an RPC provider, each artifact is a fragment contributed to the harness file with the matching extension. The artifact with no `extension` is the runtime setup (reading `ipc`, binding `rpc`); the `{ extension: '.d.ts' }` artifact is the TypeScript type of the bound instance. `generate()` receives `ipc`, the identifier of the IPC stream in scope; `rpc`, the identifier to bind the RPC instance to; `module`, the surrounding module system (`'esm'` or `'cjs'`) so the runtime fragment can emit the matching import form; and `role`, either `'client'` or `'server'`. The bundler owns the `ipc` and `rpc` binding names and threads them to both the target and the RPC provider so neither has to assume them. It renders the client in the harness `module` and the server as `'esm'` (the shim is always an ES module), splicing the runtime fragment and, for the client, the type fragment into the target's artifacts. The shim is not a typed, host-facing module, so the server's type fragment is unused.
 
 ## CLI
 
