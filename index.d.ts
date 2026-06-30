@@ -1,4 +1,5 @@
 import URL from 'bare-url'
+import { PackOptions } from 'bare-pack'
 
 interface Artifact {
   extension?: string
@@ -46,11 +47,9 @@ interface RPCClient {
   type: string
 }
 
-interface StowOptions {
+interface StowOptions extends Omit<PackOptions, 'offload' | 'linked' | 'resolve' | 'aliases'> {
   client?: RPC | RPCName
   server?: RPC | RPCName
-  base?: URL | string
-  hosts?: string[]
   resolveTarget?(name: string): Target
   resolveRPC?(name: string): RPC
 }
