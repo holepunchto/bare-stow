@@ -3,11 +3,11 @@ const { fileURLToPath } = require('url')
 const pack = require('bare-pack')
 const id = require('bare-bundle-id')
 const strip = require('bare-type-stripper')
+const { resolve } = require('bare-module-traverse')
 const fs = require('./lib/fs')
 const shim = require('./lib/shim')
 const harness = require('./lib/target')
 const rpc = require('./lib/rpc')
-const resolve = require('./lib/resolve')
 
 module.exports = async function* stow(entry, target, out, opts = {}) {
   if (!target) throw new Error("'target' is required")
@@ -69,7 +69,7 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
     shimURL,
     {
       ...packOpts,
-      resolve,
+      resolve: resolve.bare,
       aliases: {
         '.ts': '.js',
         '.mts': '.mjs',
