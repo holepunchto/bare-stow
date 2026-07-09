@@ -76,7 +76,7 @@ function pair() {
   return [a, b]
 }
 
-// Like pair() but relays plain Uint8Arrays, as a Hermes transport would —
+// Like pair() but relays plain Uint8Arrays, as a Hermes transport would -
 // nothing here upgrades the bytes to a Buffer.
 function rawPair() {
   let a, b
