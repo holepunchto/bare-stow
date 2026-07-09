@@ -62,6 +62,7 @@
   },
   "homepage": "https://github.com/holepunchto/bare-stow#readme",
   "dependencies": {
+    "b4a": "^1.6.0",
     "bare-bundle": "^1.8.3",
     "bare-bundle-id": "^1.0.0",
     "bare-fs": "^4.2.1",
