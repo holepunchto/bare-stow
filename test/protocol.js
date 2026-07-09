@@ -20,7 +20,7 @@ test('protocol round-trips plain Uint8Array frames (no Buffer methods)', (t) => 
   t.plan(1)
 
   // React Native / Hermes delivers plain Uint8Arrays, which lack Buffer's
-  // .copy/.readUInt32LE — the transport must not rely on them.
+  // .copy/.readUInt32LE - the transport must not rely on them.
   const [left, right] = rawPair()
   const host = protocol.attach(left)
   const worker = protocol.attach(right)
