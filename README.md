@@ -112,91 +112,262 @@ const ipc = wrap(stream) // Any duplex byte stream
 await ipc.ready
 ```
 
+<!-- bare-refgen:api start -->
+
 ## API
 
-#### `const artifacts = stow(entry, target, out[, opts])`
+### Functions
 
-Bundle the module graph rooted at `entry` for a `target` runtime and write the resulting artifacts to disk at and alongside `out`. Returns an async generator that yields `{ url }` objects as each artifact is written, allowing callers to observe progress.
+#### `stow`
 
-`entry` is a `URL` (or `URL`-coercible string) pointing at the entry module. `target` selects the target runtime, given either as a built-in name (`'bare-sidecar'` or `'bare-worker'`) or as a [target provider](#targets-and-rpc-providers) object. Other targets ship as their own packages; require one and pass it as the provider. The target determines the harness format, bundle extension, host triples, and whether assets and addons are linked into the bundle or offloaded as sibling files. `out` is the output `URL` of the harness; the bundle is written next to it with the target's extension.
+```ts
+stow(entry: URL | string, target: Target | TargetName, out: URL | string, opts?: StowOptions): AsyncGenerator<StowArtifact>
+```
 
-The harness artifacts are yielded first: The harness itself at `out`, followed by a TypeScript declaration (`.d.ts`) alongside it so hosts importing the harness are typed. The bundle is yielded next, then any offloaded assets and native addons when the target supports offloading.
+Bundle the module graph rooted at `entry` for `target`, writing a harness plus bundle to `out`.
 
-Options include:
+**Parameters**
 
-```js
-opts = {
-  client,
-  server,
-  base,
-  hosts,
-  resolveTarget,
-  resolveRPC
+| Parameter | Type                   | Default | Description                                                                                                                                                       |
+| --------- | ---------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entry`   | `URL \| string`        | —       | The entry module to bundle, as a `file:` URL or path string.                                                                                                      |
+| `target`  | `Target \| TargetName` | —       | The bundling target: a `Target` object, or a target name resolved to one (the built-in `bare-sidecar` and `bare-worker`, or a `bare-stow-target-<name>` package). |
+| `out`     | `URL \| string`        | —       | The path to write the harness to, as a `file:` URL or path string; the bundle is written alongside it.                                                            |
+| `opts?`   | `StowOptions`          | —       | Options; see [`StowOptions`](#stowoptions).                                                                                                                       |
+
+**Returns** `AsyncGenerator<StowArtifact>` — An async generator that yields each written artifact's `url` as it is produced — the harness first, then the bundle, then any offloaded addon or asset files.
+
+**Throws**
+
+- The `target` argument is missing.
+- The `out` argument is missing.
+- A host in `opts.hosts` is not supported by the resolved target.
+
+### Types
+
+#### `Target`
+
+```ts
+interface Target {
+  name: string
+  linked: boolean
+  offload: boolean | { addons?: boolean; assets?: boolean }
+  format: 'bundle' | 'bundle.cjs' | 'bundle.mjs' | 'bundle.json'
+  encoding: string | null
+  extension: string
+  module?: 'esm' | 'cjs'
+  hosts: string[]
+  generate(context: TargetContext): Artifact[]
 }
 ```
 
-- `client`: The RPC library to wire into the harness as a client, given either as a built-in name (`'bare-rpc'`) or as an [RPC provider](#targets-and-rpc-providers) object.
-- `server`: The RPC library to wire into the bundle entry shim as a server, given either as a built-in name (`'bare-rpc'`) or as an [RPC provider](#targets-and-rpc-providers) object.
-- `base`: The base `URL` of the module graph. Defaults to the directory containing `entry`.
-- `hosts`: An array of host triples to build for. Must be a subset of the host triples supported by the target; passing a host the target does not support throws. Defaults to all host triples supported by the target.
-- `resolveTarget`: A function mapping a target name to a [target provider](#targets-and-rpc-providers) object, called when `target` is a name not in the built-in registry (which knows `'bare-sidecar'` and `'bare-worker'`).
-- `resolveRPC`: A function mapping an RPC library name to an [RPC provider](#targets-and-rpc-providers) object, called when `client` or `server` is a name not in the built-in registry (which only knows `'bare-rpc'`).
+A bundling target, such as `bare-sidecar` or `bare-worker`, describing how to package and boot a bundle on a given host runtime.
 
-Any additional options are forwarded to `bare-pack`. See <https://github.com/holepunchto/bare-pack> for the full set, including `builtins`, `imports`, `defer`, and `resolve`.
+#### `TargetContext`
 
-#### TypeScript
-
-TypeScript modules are supported out of the box: `.ts`, `.mts`, and `.cts` sources are stripped of their type syntax with [`bare-type-stripper`](https://github.com/holepunchto/bare-type-stripper) as they are read, and their extensions are aliased to `.js`, `.mjs`, and `.cjs` respectively for module-type detection. The stripper only erases types, so the module system follows the aliased JavaScript extension. Because stripping is purely lexical, non-erasable constructs (`enum`, `namespace` with a body, parameter properties) throw, and JSX (`.tsx`) is not supported.
-
-### Targets and RPC providers
-
-The harness and RPC code generators are decoupled from the bundler: `target`, `client`, and `server` each accept a provider object directly, so generators can live outside `bare-stow`. Passing a name instead resolves it through `resolveTarget` / `resolveRPC`, which default to the built-in registries.
-
-Both kinds of provider return an ordered array of artifacts. An artifact is `{ extension?, source }`:
-
-```js
-artifacts = [
-  { source }, // The primary output.
-  { extension, source } // A companion, named after the primary plus this extension.
-]
-```
-
-A target provider describes the runtime profile it owns and generates the harness that boots the bundle from the host:
-
-```js
-target = {
-  name, // The target's name, used in diagnostics.
-  linked, // Whether assets and addons are linked into the bundle.
-  offload, // Whether (and which) assets and addons are offloaded as sibling files.
-  format, // The bundle encoding: 'bundle', 'bundle.cjs', 'bundle.mjs', or 'bundle.json'.
-  encoding, // The string encoding for encoded formats, or null for raw bytes.
-  extension, // The bundle file extension, e.g. '.bundle'.
-  module, // Optional. Pins the harness module system to 'esm' or 'cjs'.
-  hosts, // The host triples the target supports.
-  generate({ bundleSpecifier, ipc, rpc, module, client }) {
-    // Return an array of harness artifacts.
-  }
+```ts
+interface TargetContext {
+  bundleSpecifier: string
+  ipc: string
+  rpc: string
+  module: 'esm' | 'cjs'
+  client: RPCClient | null
 }
 ```
 
-For a target, each artifact is a file. The first has no `extension` and is written to `out`; each remaining artifact is written next to `out` with its own `extension` substituted for the harness extension (e.g. `{ extension: '.d.ts' }` becomes `index.d.ts`). The built-in targets emit two artifacts: The harness and its TypeScript declaration.
+The context passed to a target's `generate()`, describing the bundle to embed and the RPC wiring to splice in.
 
-`generate()` receives `bundleSpecifier`, the relative specifier from the harness to the bundle artifact; `ipc`, the identifier the harness should bind the IPC stream to; `rpc`, the identifier the RPC client setup binds its instance to; `module`, the harness module system (`'esm'` or `'cjs'`) so the harness can emit the matching module and import forms; and `client`, the resolved RPC client (or `null` when no client is requested). When present, `client` is `{ source, type }`: `source` is the runtime setup to splice into the harness (referencing `ipc` and binding `rpc`), and `type` is the TypeScript type of the bound instance to splice into the declaration. The target owns `linked`, `offload`, `format`, `encoding`, and `extension`; they are not overridable through `opts`.
+#### `RPC`
 
-The harness `module` system is derived from the output path: `out` ending in `.mjs` is ESM and `.cjs` is CommonJS, while an ambiguous `.js` (or other) extension follows the `type` of the closest enclosing `package.json` (`"module"` is ESM, otherwise CommonJS). A target may set its own `module` to pin the harness to one system regardless of the output path.
-
-An RPC provider generates the wiring that binds an RPC instance to the IPC stream, used on both the client (harness) and server (shim) side:
-
-```js
-rpc = {
-  name, // The library's name, used in diagnostics.
-  generate({ ipc, rpc, module, role }) {
-    // Return an array of RPC artifacts.
-  }
+```ts
+interface RPC {
+  name: string
+  generate(context: RPCContext): Artifact[]
 }
 ```
 
-For an RPC provider, each artifact is a fragment contributed to the harness file with the matching extension. The artifact with no `extension` is the runtime setup (reading `ipc`, binding `rpc`); the `{ extension: '.d.ts' }` artifact is the TypeScript type of the bound instance. `generate()` receives `ipc`, the identifier of the IPC stream in scope; `rpc`, the identifier to bind the RPC instance to; `module`, the surrounding module system (`'esm'` or `'cjs'`) so the runtime fragment can emit the matching import form; and `role`, either `'client'` or `'server'`. The bundler owns the `ipc` and `rpc` binding names and threads them to both the target and the RPC provider so neither has to assume them. It renders the client in the harness `module` and the server as `'esm'` (the shim is always an ES module), splicing the runtime fragment and, for the client, the type fragment into the target's artifacts. The shim is not a typed, host-facing module, so the server's type fragment is unused.
+An RPC library adapter that generates the wiring code spliced into a stowed bundle's harness or entry shim.
+
+#### `RPCContext`
+
+```ts
+interface RPCContext {
+  ipc: string
+  rpc: string
+  module: 'esm' | 'cjs'
+  role: 'client' | 'server'
+}
+```
+
+The context passed to an RPC adapter's `generate()`.
+
+#### `RPCClient`
+
+```ts
+interface RPCClient {
+  source: string
+  type: string
+}
+```
+
+The resolved client RPC wiring, carrying both the runtime source to splice into the harness and the type declaration to splice into the harness's `.d.ts`.
+
+#### `Artifact`
+
+```ts
+interface Artifact {
+  extension?: string
+  source: string
+}
+```
+
+A single generated source artifact, such as a harness or a type declaration.
+
+#### `StowOptions`
+
+```ts
+interface StowOptions {
+  client?: RPC | RPCName
+  server?: RPC | RPCName
+  resolveTarget?(name: string): Target
+  resolveRPC?(name: string): RPC
+  concurrency?: number
+  base?: URL | string
+  defaultType?: number
+  builtinProtocol?: string
+  builtins?: Builtins
+  conditions?: Conditions
+  extensions?: string[]
+  host?: string
+  hosts?: string[]
+  linkedProtocol?: string
+  matchedConditions?: string[]
+  resolutions?: ResolutionsMap
+}
+```
+
+Options for `stow()`.
+
+#### `StowArtifact`
+
+```ts
+interface StowArtifact {
+  url: URL
+}
+```
+
+An artifact written by `stow()`, yielded once its file has been written.
+
+## `bare-stow/protocol`
+
+### Protocol
+
+#### `new Protocol(stream: Duplex)`
+
+Attach a `Protocol` to the given underlying duplex byte `stream`.
+
+**Parameters**
+
+| Parameter | Type     | Default | Description                                                                             |
+| --------- | -------- | ------- | --------------------------------------------------------------------------------------- |
+| `stream`  | `Duplex` | —       | The underlying duplex byte stream to multiplex the control and user-data channels over. |
+
+#### `send(type: string, payload?: object): Promise<void>`
+
+Send a control frame of `type` with an optional JSON-serializable `payload`.
+
+**Parameters**
+
+| Parameter  | Type     | Default | Description                                                                           |
+| ---------- | -------- | ------- | ------------------------------------------------------------------------------------- |
+| `type`     | `string` | —       | The control frame type, for example `'ready'`, `'exit'`, `'error'`, or `'terminate'`. |
+| `payload?` | `object` | —       | An optional JSON-serializable payload carried with the frame.                         |
+
+### Functions
+
+#### `attach(stream: Duplex): Protocol`
+
+Attach a `Protocol` to `stream`, an underlying duplex byte stream.
+
+**Parameters**
+
+| Parameter | Type     | Default | Description                                       |
+| --------- | -------- | ------- | ------------------------------------------------- |
+| `stream`  | `Duplex` | —       | Any duplex byte stream to attach the protocol to. |
+
+**Returns** `Protocol` — A `Protocol` multiplexing control and user-data frames over `stream`.
+
+### Constants and variables
+
+#### `CONTROL: number`
+
+The frame type marker identifying a control-channel frame.
+
+#### `USER: number`
+
+The frame type marker identifying a user-data-channel frame.
+
+### Types
+
+#### `ProtocolEvents`
+
+```ts
+interface ProtocolEvents {
+  ready: []
+  terminate: []
+  exit: [code: number]
+  data: [data: unknown]
+  end: []
+  readable: []
+  piping: [dest: Writable]
+  close: []
+  error: [err: Error]
+  drain: []
+  finish: []
+  pipe: [src: Readable]
+}
+```
+
+The events emitted by a `Protocol`, in addition to the standard duplex stream events.
+
+## `bare-stow/host`
+
+### IPC
+
+#### `new IPC(stream: Duplex)`
+
+Wrap the host side of a stowed bundle's transport `stream`.
+
+**Parameters**
+
+| Parameter | Type     | Default | Description                                                            |
+| --------- | -------- | ------- | ---------------------------------------------------------------------- |
+| `stream`  | `Duplex` | —       | The host side of a stowed bundle's transport (any duplex byte stream). |
+
+#### `ready: Promise<void>`
+
+A promise that resolves once the worker has signaled ready, and rejects if the worker errors before then.
+
+#### `terminate(): Promise<number | undefined>`
+
+Send a `terminate` control frame to the worker and resolve with its exit code once it exits.
+
+**Returns** `Promise<number | undefined>` — The worker's exit `code` once it exits.
+
+### Functions
+
+#### `wrap(stream: Duplex): IPC`
+
+Wrap the host side of a stowed bundle's transport `stream`, returning an `IPC` handle with lifecycle helpers layered on top of the `Protocol`.
+
+**Parameters**
+
+| Parameter | Type     | Default | Description                                                            |
+| --------- | -------- | ------- | ---------------------------------------------------------------------- |
+| `stream`  | `Duplex` | —       | The host side of a stowed bundle's transport (any duplex byte stream). |
+
+**Returns** `IPC` — An `IPC` handle wrapping `stream`, with the `ready` promise and `terminate()` layered on top of `Protocol`.
+<!-- bare-refgen:api end -->
 
 ## CLI
 
