@@ -114,7 +114,7 @@ await ipc.ready
 
 ## API
 
-See the [full API reference](https://docs.pears.com/reference/bare/modules/bare-stow).
+See the [`bare-stow` reference](https://docs.pears.com/reference/bare/modules/bare-stow).
 
 ## CLI
 
