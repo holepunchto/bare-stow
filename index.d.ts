@@ -3,7 +3,10 @@ import { PackOptions } from 'bare-pack'
 
 /** A single generated source artifact, such as a harness or a type declaration. */
 interface Artifact {
-  /** The file extension the artifact should be written with alongside the primary output, or unset to write it to the primary output path itself. */
+  /**
+   * The file extension the artifact should be written with alongside the primary output, or unset
+   * to write it to the primary output path itself.
+   */
   extension?: string
   /** The artifact's source text. */
   source: string
@@ -11,7 +14,10 @@ interface Artifact {
 
 type TargetName = 'bare-sidecar' | 'bare-worker'
 
-/** The context passed to a target's `generate()`, describing the bundle to embed and the RPC wiring to splice in. */
+/**
+ * The context passed to a target's `generate()`, describing the bundle to embed and the RPC wiring
+ * to splice in.
+ */
 interface TargetContext {
   /** The module specifier the harness uses to load the bundle, relative to the harness itself. */
   bundleSpecifier: string
@@ -21,31 +27,47 @@ interface TargetContext {
   rpc: string
   /** The module system the harness is generated in, `'esm'` or `'cjs'`. */
   module: 'esm' | 'cjs'
-  /** The resolved client RPC wiring to splice into the harness, or `null` when no client RPC was requested. */
+  /**
+   * The resolved client RPC wiring to splice into the harness, or `null` when no client RPC was
+   * requested.
+   */
   client: RPCClient | null
 }
 
-/** A bundling target, such as `bare-sidecar` or `bare-worker`, describing how to package and boot a bundle on a given host runtime. */
+/**
+ * A bundling target, such as `bare-sidecar` or `bare-worker`, describing how to package and boot a
+ * bundle on a given host runtime.
+ */
 interface Target {
   /** The target's name. */
   name: string
   /** Whether the bundle links against its dependencies rather than inlining them. */
   linked: boolean
-  /** Whether native addons and/or assets are written out as sibling files instead of being inlined into the bundle. */
+  /**
+   * Whether native addons and/or assets are written out as sibling files instead of being inlined
+   * into the bundle.
+   */
   offload: boolean | { addons?: boolean; assets?: boolean }
   /** The encoding format of the written bundle artifact. */
   format: 'bundle' | 'bundle.cjs' | 'bundle.mjs' | 'bundle.json'
-  /** The text encoding used when the bundle format wraps the bundle as a string, or `null` when the bundle is written as raw bytes. */
+  /**
+   * The text encoding used when the bundle format wraps the bundle as a string, or `null` when the
+   * bundle is written as raw bytes.
+   */
   encoding: string | null
   /** The file extension used for the target's harness artifact. */
   extension: string
-  /** The module system the harness is generated in, `'esm'` or `'cjs'`. When unset, it follows the output path's extension or nearest `package.json` `type`. */
+  /**
+   * The module system the harness is generated in, `'esm'` or `'cjs'`. When unset, it follows the
+   * output path's extension or nearest `package.json` `type`.
+   */
   module?: 'esm' | 'cjs'
   /** The host triples the target supports. */
   hosts: string[]
   /**
    * Generate the harness artifacts for `context`.
-   * @param context - The target context describing the bundle to embed and the RPC wiring to splice in.
+   * @param context - The target context describing the bundle to embed and the RPC wiring to splice
+   * in.
    */
   generate(context: TargetContext): Artifact[]
 }
@@ -60,22 +82,32 @@ interface RPCContext {
   rpc: string
   /** The module system the generated code targets, `'esm'` or `'cjs'`. */
   module: 'esm' | 'cjs'
-  /** Whether the generated wiring is for the `'client'` (harness side) or `'server'` (bundle entry shim side). */
+  /**
+   * Whether the generated wiring is for the `'client'` (harness side) or `'server'` (bundle entry
+   * shim side).
+   */
   role: 'client' | 'server'
 }
 
-/** An RPC library adapter that generates the wiring code spliced into a stowed bundle's harness or entry shim. */
+/**
+ * An RPC library adapter that generates the wiring code spliced into a stowed bundle's harness or
+ * entry shim.
+ */
 interface RPC {
   /** The RPC adapter's name. */
   name: string
   /**
    * Generate the RPC wiring artifacts for `context`.
-   * @param context - The RPC context describing the identifiers, module system, and role to generate wiring for.
+   * @param context - The RPC context describing the identifiers, module system, and role to
+   * generate wiring for.
    */
   generate(context: RPCContext): Artifact[]
 }
 
-/** The resolved client RPC wiring, carrying both the runtime source to splice into the harness and the type declaration to splice into the harness's `.d.ts`. */
+/**
+ * The resolved client RPC wiring, carrying both the runtime source to splice into the harness and
+ * the type declaration to splice into the harness's `.d.ts`.
+ */
 interface RPCClient {
   /** The generated runtime source for the client RPC wiring. */
   source: string
@@ -110,10 +142,13 @@ interface StowArtifact {
 /**
  * Bundle the module graph rooted at `entry` for `target`, writing a harness plus bundle to `out`.
  * @param entry - The entry module to bundle, as a `file:` URL or path string.
- * @param target - The bundling target: a `Target` object, or a target name resolved to one (the built-in `bare-sidecar` and `bare-worker`, or a `bare-stow-target-<name>` package).
- * @param out - The path to write the harness to, as a `file:` URL or path string; the bundle is written alongside it.
+ * @param target - The bundling target: a `Target` object, or a target name resolved to one (the
+ * built-in `bare-sidecar` and `bare-worker`, or a `bare-stow-target-<name>` package).
+ * @param out - The path to write the harness to, as a `file:` URL or path string; the bundle is
+ * written alongside it.
  * @param opts - Options; see [`StowOptions`](#stowoptions).
- * @returns An async generator that yields each written artifact's `url` as it is produced — the harness first, then the bundle, then any offloaded addon or asset files.
+ * @returns An async generator that yields each written artifact's `url` as it is produced — the
+ * harness first, then the bundle, then any offloaded addon or asset files.
  * @throws The `target` argument is missing.
  * @throws The `out` argument is missing.
  * @throws A host in `opts.hosts` is not supported by the resolved target.

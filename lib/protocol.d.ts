@@ -18,7 +18,8 @@ interface ProtocolEvents extends DuplexEvents {
 interface Protocol<E extends ProtocolEvents = ProtocolEvents> extends Duplex<E> {
   /**
    * Send a control frame of `type` with an optional JSON-serializable `payload`.
-   * @param type - The control frame type, for example `'ready'`, `'exit'`, `'error'`, or `'terminate'`.
+   * @param type - The control frame type, for example `'ready'`, `'exit'`, `'error'`, or
+   * `'terminate'`.
    * @param payload - An optional JSON-serializable payload carried with the frame.
    */
   send(type: string, payload?: object): Promise<void>
@@ -27,7 +28,8 @@ interface Protocol<E extends ProtocolEvents = ProtocolEvents> extends Duplex<E> 
 declare class Protocol {
   /**
    * Attach a `Protocol` to the given underlying duplex byte `stream`.
-   * @param stream - The underlying duplex byte stream to multiplex the control and user-data channels over.
+   * @param stream - The underlying duplex byte stream to multiplex the control and user-data
+   * channels over.
    */
   constructor(stream: Duplex)
 }
