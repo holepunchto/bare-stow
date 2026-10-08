@@ -6,6 +6,10 @@ const stow = require('..')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'fixtures') + '/')
 
+// The fixtures depend on packages hoisted to the root of the repository, so the
+// module graph is based there.
+const base = pathToFileURL(path.join(__dirname, '..') + '/')
+
 // `bare-worker` runs the bundle on a Bare thread, so the harness can only be
 // started under Bare.
 const opts = { skip: !isBare }
@@ -49,9 +53,9 @@ test('worker harness preserves write order', opts, async (t) => {
 })
 
 async function bundle(name) {
-  const base = new URL(name + '/', fixtures)
-  const entry = new URL('core.js', base)
-  const out = new URL('out/worker.js', base)
+  const dir = new URL(name + '/', fixtures)
+  const entry = new URL('core.js', dir)
+  const out = new URL('out/worker.js', dir)
 
   for await (const _ of stow(entry, 'bare-worker', out, { base })) {
     //

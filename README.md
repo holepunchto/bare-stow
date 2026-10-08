@@ -66,6 +66,8 @@ ipc.on('exit', (code) => {
 ipc.destroy()
 ```
 
+For the `bare-sidecar` target, `start()` accepts the options of `bare-sidecar`. The sidecar inherits the standard streams of the host unless `stdio` says otherwise.
+
 ## Protocol
 
 The harness multiplexes a control channel and a user data channel over the underlying binary duplex stream. The `ipc` returned from `start()` is itself a duplex stream carrying the user data; control frames ride alongside it on the same handle. RPC libraries (such as `bare-rpc`) bind to `ipc` just like a raw stream.

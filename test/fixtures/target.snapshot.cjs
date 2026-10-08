@@ -8,7 +8,7 @@ const bundle = path.join(__dirname, "./core.bundle")
 
 module.exports = {
   async start(opts = {}) {
-    const sidecar = new Sidecar(bundle, opts)
+    const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
     const ipc = stow.wrap(sidecar)
 
@@ -31,7 +31,7 @@ const bundle = path.join(__dirname, "./core.bundle")
 
 module.exports = {
   async start(opts = {}) {
-    const sidecar = new Sidecar(bundle, opts)
+    const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
     const ipc = stow.wrap(sidecar)
 
@@ -60,7 +60,7 @@ import { fileURLToPath } from 'url'
 const bundle = fileURLToPath(new URL("./core.bundle", import.meta.url))
 
 export async function start(opts = {}) {
-  const sidecar = new Sidecar(bundle, opts)
+  const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
   const ipc = stow.wrap(sidecar)
 
@@ -82,7 +82,7 @@ import { fileURLToPath } from 'url'
 const bundle = fileURLToPath(new URL("./core.bundle", import.meta.url))
 
 export async function start(opts = {}) {
-  const sidecar = new Sidecar(bundle, opts)
+  const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
   const ipc = stow.wrap(sidecar)
 
