@@ -5,10 +5,6 @@ const stow = require('..')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'fixtures') + '/')
 
-// The fixtures depend on packages hoisted to the root of the repository, so the
-// module graph is based there.
-const base = pathToFileURL(path.join(__dirname, '..') + '/')
-
 test('sidecar harness echoes user data', async (t) => {
   const harness = await bundle('echo')
   const { ipc } = await harness.start()
@@ -29,7 +25,7 @@ test('sidecar esm harness echoes user data', async (t) => {
   const entry = new URL('core.js', dir)
   const out = new URL('out/index.mjs', dir)
 
-  for await (const _ of stow(entry, 'bare-sidecar', out, { base })) {
+  for await (const _ of stow(entry, 'bare-sidecar', out)) {
     //
   }
 
@@ -140,7 +136,7 @@ async function bundle(name) {
   const entry = new URL('core.js', dir)
   const out = new URL('out/index.js', dir)
 
-  for await (const _ of stow(entry, 'bare-sidecar', out, { base })) {
+  for await (const _ of stow(entry, 'bare-sidecar', out)) {
     //
   }
 
