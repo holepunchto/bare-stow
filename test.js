@@ -2,6 +2,7 @@ const path = require('path')
 const fs = require('fs')
 const { pathToFileURL, fileURLToPath } = require('url')
 const test = require('brittle')
+const Bundle = require('bare-bundle')
 const stow = require('.')
 const sidecar = require('./lib/target/bare-sidecar')
 
@@ -16,47 +17,47 @@ require('./test/sidecar')
 require('./test/worker')
 
 test('stow bare-sidecar yields harness + bundle', async (t) => {
-  const base = new URL('basic/', fixtures)
-  const entry = new URL('core.js', base)
-  const out = new URL('out/index.js', base)
+  const dir = new URL('basic/', fixtures)
+  const entry = new URL('core.js', dir)
+  const out = new URL('out/index.js', dir)
 
   const artifacts = []
 
-  for await (const artifact of stow(entry, 'bare-sidecar', out, { base })) {
+  for await (const artifact of stow(entry, 'bare-sidecar', out)) {
     artifacts.push(artifact)
   }
 
   t.alike(artifacts, [
     { url: out },
-    { url: new URL('out/index.d.ts', base) },
-    { url: new URL('out/index.bundle', base) }
+    { url: new URL('out/index.d.ts', dir) },
+    { url: new URL('out/index.bundle', dir) }
   ])
 })
 
 test('stow strips types from a TypeScript entry', async (t) => {
-  const base = new URL('typescript/', fixtures)
-  const entry = new URL('core.ts', base)
-  const out = new URL('out/index.js', base)
+  const dir = new URL('typescript/', fixtures)
+  const entry = new URL('core.ts', dir)
+  const out = new URL('out/index.js', dir)
 
   const artifacts = []
 
-  for await (const artifact of stow(entry, 'bare-sidecar', out, { base })) {
+  for await (const artifact of stow(entry, 'bare-sidecar', out)) {
     artifacts.push(artifact)
   }
 
   t.alike(artifacts, [
     { url: out },
-    { url: new URL('out/index.d.ts', base) },
-    { url: new URL('out/index.bundle', base) }
+    { url: new URL('out/index.d.ts', dir) },
+    { url: new URL('out/index.bundle', dir) }
   ])
 })
 
 test('stow generates an esm harness for a .mjs output', async (t) => {
-  const base = new URL('basic/', fixtures)
-  const entry = new URL('core.js', base)
-  const out = new URL('out/index.mjs', base)
+  const dir = new URL('basic/', fixtures)
+  const entry = new URL('core.js', dir)
+  const out = new URL('out/index.mjs', dir)
 
-  for await (const _ of stow(entry, 'bare-sidecar', out, { base })) {
+  for await (const _ of stow(entry, 'bare-sidecar', out)) {
     //
   }
 
@@ -67,11 +68,11 @@ test('stow generates an esm harness for a .mjs output', async (t) => {
 })
 
 test('stow generates a cjs harness for a .cjs output', async (t) => {
-  const base = new URL('basic/', fixtures)
-  const entry = new URL('core.js', base)
-  const out = new URL('out/index.cjs', base)
+  const dir = new URL('basic/', fixtures)
+  const entry = new URL('core.js', dir)
+  const out = new URL('out/index.cjs', dir)
 
-  for await (const _ of stow(entry, 'bare-sidecar', out, { base })) {
+  for await (const _ of stow(entry, 'bare-sidecar', out)) {
     //
   }
 
@@ -82,12 +83,12 @@ test('stow generates a cjs harness for a .cjs output', async (t) => {
 })
 
 test('stow generates an esm harness for a .js output under "type": "module"', async (t) => {
-  const base = new URL('esm/', fixtures)
-  const entry = new URL('core.js', base)
-  const out = new URL('out/index.js', base)
+  const dir = new URL('esm/', fixtures)
+  const entry = new URL('core.js', dir)
+  const out = new URL('out/index.js', dir)
 
   // The fixture declares `"type": "module"`, so a `.js` output resolves to ESM.
-  for await (const _ of stow(entry, 'bare-sidecar', out, { base })) {
+  for await (const _ of stow(entry, 'bare-sidecar', out)) {
     //
   }
 
@@ -97,14 +98,14 @@ test('stow generates an esm harness for a .js output under "type": "module"', as
 })
 
 test('stow lets a target override the path-derived module system', async (t) => {
-  const base = new URL('basic/', fixtures)
-  const entry = new URL('core.js', base)
-  const out = new URL('out/index.mjs', base)
+  const dir = new URL('basic/', fixtures)
+  const entry = new URL('core.js', dir)
+  const out = new URL('out/index.mjs', dir)
 
   // Pin the target to CommonJS even though the output path implies ESM.
   const target = { ...sidecar, module: 'cjs' }
 
-  for await (const _ of stow(entry, target, out, { base })) {
+  for await (const _ of stow(entry, target, out)) {
     //
   }
 
@@ -134,14 +135,13 @@ test('stow throws without out', async (t) => {
 })
 
 test('stow accepts a subset of target hosts', async (t) => {
-  const base = new URL('basic/', fixtures)
-  const entry = new URL('core.js', base)
-  const out = new URL('out/index.js', base)
+  const dir = new URL('basic/', fixtures)
+  const entry = new URL('core.js', dir)
+  const out = new URL('out/index.js', dir)
 
   const artifacts = []
 
   for await (const artifact of stow(entry, 'bare-sidecar', out, {
-    base,
     hosts: ['darwin-arm64']
   })) {
     artifacts.push(artifact)
@@ -149,38 +149,58 @@ test('stow accepts a subset of target hosts', async (t) => {
 
   t.alike(artifacts, [
     { url: out },
-    { url: new URL('out/index.d.ts', base) },
-    { url: new URL('out/index.bundle', base) }
+    { url: new URL('out/index.d.ts', dir) },
+    { url: new URL('out/index.bundle', dir) }
   ])
 })
 
-test('stow reroots offloaded assets resolved outside base', async (t) => {
-  const base = new URL('reroot/app/', fixtures)
-  const entry = new URL('core.js', base)
-  const out = new URL('out/index.js', base)
+test('stow defaults base to the closest directory containing every module', async (t) => {
+  const dir = new URL('reroot/app/', fixtures)
+  const entry = new URL('core.js', dir)
+  const out = new URL('out/index.js', dir)
 
   const artifacts = []
 
-  for await (const artifact of stow(entry, 'bare-sidecar', out, { base })) {
+  for await (const artifact of stow(entry, 'bare-sidecar', out)) {
     artifacts.push(artifact)
   }
 
   t.alike(artifacts, [
     { url: out },
-    { url: new URL('out/index.d.ts', base) },
-    { url: new URL('out/index.bundle', base) },
-    { url: new URL('out/node_modules/dummy/asset.txt', base) }
+    { url: new URL('out/index.d.ts', dir) },
+    { url: new URL('out/index.bundle', dir) },
+    { url: new URL('out/node_modules/dummy/asset.txt', dir) }
   ])
+
+  const bundle = Bundle.from(fs.readFileSync(fileURLToPath(new URL('out/index.bundle', dir))))
+
+  const resolutions = Object.values(bundle.resolutions).flatMap((imports) => Object.values(imports))
+
+  t.ok(
+    resolutions.some((value) => JSON.stringify(value).includes('/../node_modules/dummy/asset.txt')),
+    'the offloaded asset resolves next to the bundle'
+  )
 })
 
-test('stow throws for host not supported by target', async (t) => {
-  const base = new URL('basic/', fixtures)
+test('stow throws when base does not contain every module', async (t) => {
+  const base = new URL('reroot/app/', fixtures)
   const entry = new URL('core.js', base)
   const out = new URL('out/index.js', base)
 
   await t.exception(async () => {
+    for await (const _ of stow(entry, 'bare-sidecar', out, { base })) {
+      //
+    }
+  }, /is outside base/)
+})
+
+test('stow throws for host not supported by target', async (t) => {
+  const dir = new URL('basic/', fixtures)
+  const entry = new URL('core.js', dir)
+  const out = new URL('out/index.js', dir)
+
+  await t.exception(async () => {
     for await (const _ of stow(entry, 'bare-sidecar', out, {
-      base,
       hosts: ['ios-arm64']
     })) {
       //

@@ -139,7 +139,7 @@ opts = {
 
 - `client`: The RPC library to wire into the harness as a client, given either as a built-in name (`'bare-rpc'`) or as an [RPC provider](#targets-and-rpc-providers) object.
 - `server`: The RPC library to wire into the bundle entry shim as a server, given either as a built-in name (`'bare-rpc'`) or as an [RPC provider](#targets-and-rpc-providers) object.
-- `base`: The base `URL` of the module graph. Defaults to the directory containing `entry`.
+- `base`: The base `URL` of the module graph, which must contain every module in the bundle. Defaults to the closest directory that does.
 - `hosts`: An array of host triples to build for. Must be a subset of the host triples supported by the target; passing a host the target does not support throws. Defaults to all host triples supported by the target.
 - `resolveTarget`: A function mapping a target name to a [target provider](#targets-and-rpc-providers) object, called when `target` is a name not in the built-in registry (which knows `'bare-sidecar'` and `'bare-worker'`).
 - `resolveRPC`: A function mapping an RPC library name to an [RPC provider](#targets-and-rpc-providers) object, called when `client` or `server` is a name not in the built-in registry (which only knows `'bare-rpc'`).

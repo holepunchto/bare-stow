@@ -21,7 +21,6 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   entry = new URL(entry)
   out = new URL(out)
-  base = base ? new URL(base) : new URL('./', entry)
 
   // The target may pin a module system; otherwise it follows the output path.
   const module = t.module || (await resolveModule(out))
@@ -36,7 +35,7 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
     hosts = t.hosts
   }
 
-  const shimURL = shim.url(base)
+  const shimURL = shim.url(new URL('./', entry))
 
   // The server only contributes runtime wiring to the shim; the shim is not a
   // typed, host-facing module so it has no declaration artifact.
@@ -63,9 +62,11 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   let writeFile
 
-  if (isOffloadEnabled(t.offload)) writeFile = collectOffloaded(base, out, offloaded)
+  if (isOffloadEnabled(t.offload)) writeFile = collectOffloaded(offloaded)
 
-  const bundle = await pack(
+  // The base of the bundle depends on where its modules live, so the graph is
+  // packed unbased and unmounted once that is known.
+  let bundle = await pack(
     shimURL,
     {
       ...packOpts,
@@ -75,7 +76,6 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
         '.mts': '.mjs',
         '.cts': '.cjs'
       },
-      base,
       hosts,
       linked: t.linked,
       offload: t.offload
@@ -84,6 +84,10 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
     fs.listPrefix,
     writeFile
   )
+
+  base = resolveBase(base, bundle)
+
+  bundle = rerootOffloaded(bundle.unmount(base), base, out, offloaded)
 
   bundle.id = id(bundle).toString('hex')
 
@@ -132,6 +136,44 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
   }
 }
 
+function resolveBase(base, graph) {
+  const modules = [...graph.keys()].map((href) => new URL(href))
+
+  if (base) {
+    base = new URL(base)
+
+    if (!base.pathname.endsWith('/')) base.pathname += '/'
+
+    for (const url of modules) {
+      if (url.protocol === base.protocol && !url.href.startsWith(base.href)) {
+        throw new Error(`Module '${url.href}' is outside base '${base.href}'`)
+      }
+    }
+
+    return base
+  }
+
+  let common = null
+
+  for (const url of modules) {
+    if (url.protocol !== 'file:') continue
+
+    const dir = new URL('./', url)
+
+    if (common === null) common = dir
+
+    while (!dir.href.startsWith(common.href)) {
+      const parent = new URL('../', common)
+
+      if (parent.href === common.href) throw new Error('Modules share no common base')
+
+      common = parent
+    }
+  }
+
+  return common
+}
+
 function isOffloadEnabled(offload) {
   if (offload === true) return true
   if (offload && (offload.addons || offload.assets)) return true
@@ -153,26 +195,83 @@ function wrapReadModule(readModule, shimURL, shimSource) {
   }
 }
 
-function collectOffloaded(base, out, sink) {
-  const dir = new URL('./', out)
-
+function collectOffloaded(sink) {
   return function writeFile(url, source) {
-    let relative
-
-    const nm = url.pathname.indexOf('/node_modules/')
-
-    if (nm >= 0) {
-      relative = url.pathname.slice(nm + 1)
-    } else if (url.pathname.startsWith(base.pathname)) {
-      relative = url.pathname.slice(base.pathname.length)
-    } else {
-      relative = url.pathname.replace(/^\//, '')
-    }
-
-    sink.push({ url: new URL(relative, dir), source })
+    sink.push({ url, source })
 
     return null
   }
+}
+
+// Offloaded files are written next to the harness, so their resolutions are
+// rewritten to point beside the bundle, along with the directories that hold
+// them, as `bare-pack` does for a bundle packed with a base.
+function rerootOffloaded(bundle, base, out, offloaded) {
+  if (offloaded.length === 0) return bundle
+
+  const dir = new URL('./', out)
+  const rewrites = new Map()
+
+  for (const file of offloaded) {
+    const relative = offloadedPath(file.url, base)
+
+    let key = '/' + path.posix.relative(base.pathname, file.url.pathname)
+    let value = '/../' + relative
+
+    rewrites.set(key, value)
+
+    for (;;) {
+      key = key.substring(0, key.lastIndexOf('/'))
+
+      if (isTerminator(key)) break
+
+      value = value.substring(0, value.lastIndexOf('/'))
+
+      if (isTerminator(value)) break
+
+      rewrites.set(key, value)
+    }
+
+    file.url = new URL(relative, dir)
+  }
+
+  const resolutions = {}
+
+  for (const [href, imports] of Object.entries(bundle.resolutions)) {
+    resolutions[href] = rewriteImports(imports, rewrites)
+  }
+
+  bundle.resolutions = resolutions
+
+  return bundle
+}
+
+function offloadedPath(url, base) {
+  const nm = url.pathname.indexOf('/node_modules/')
+
+  if (nm >= 0) return url.pathname.slice(nm + 1)
+
+  if (url.pathname.startsWith(base.pathname)) return url.pathname.slice(base.pathname.length)
+
+  return url.pathname.replace(/^\//, '')
+}
+
+function rewriteImports(imports, rewrites) {
+  if (typeof imports === 'string') return rewrites.get(imports) || imports
+
+  if (typeof imports !== 'object' || imports === null) return imports
+
+  const rewritten = {}
+
+  for (const [condition, value] of Object.entries(imports)) {
+    rewritten[condition] = rewriteImports(value, rewrites)
+  }
+
+  return rewritten
+}
+
+function isTerminator(input) {
+  return input === '' || input.endsWith('/') || input.endsWith(':')
 }
 
 async function resolveModule(out) {

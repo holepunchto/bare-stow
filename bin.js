@@ -22,7 +22,10 @@ const cmd = command(
     '--server <name>',
     'The RPC server to include (bare-rpc, or a bare-stow-rpc-<name> package)'
   ),
-  flag('--base <path>', 'The base path of the bundle'),
+  flag(
+    '--base <path>',
+    'The base path of the bundle (defaults to the closest directory containing every bundled module)'
+  ),
   flag('--out|-o <path>', 'The output path of the harness'),
   flag('--builtins <path>', 'A list of builtin modules'),
   flag('--imports <path>', 'A map of global import overrides'),
@@ -35,7 +38,7 @@ const cmd = command(
       target,
       client,
       server,
-      base = '.',
+      base,
       out,
       builtins,
       imports,
@@ -60,9 +63,7 @@ const cmd = command(
       if ('default' in imports) imports = imports.default
     }
 
-    base = pathToFileURL(base)
-
-    if (!base.pathname.endsWith('/')) base.pathname += '/'
+    if (base) base = pathToFileURL(path.resolve(base) + '/')
 
     for await (const _ of stow(pathToFileURL(entry), target, pathToFileURL(out), {
       client,
