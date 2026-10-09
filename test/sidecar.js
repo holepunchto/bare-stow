@@ -113,6 +113,12 @@ test('sidecar harness rejects start when entry throws at top level', async (t) =
   await t.exception(harness.start(), /load/)
 })
 
+test('sidecar harness rejects start when entry exits before ready', async (t) => {
+  const harness = await bundle('exit')
+
+  await t.exception(harness.start(), /closed before ready/)
+})
+
 test('sidecar harness surfaces uncaught exceptions', async (t) => {
   const harness = await bundle('uncaught')
   const { ipc } = await harness.start()

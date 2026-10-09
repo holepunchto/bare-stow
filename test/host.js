@@ -26,6 +26,39 @@ test('host wrap rejects ready when worker errors before ready', async (t) => {
   await t.exception(ipc.ready, /boom/)
 })
 
+test('host wrap rejects ready when worker exits before ready', async (t) => {
+  const [left, right] = pair()
+  const ipc = host.wrap(left)
+  const worker = protocol.attach(right)
+
+  worker.send('exit', { code: 1 })
+
+  await t.exception(ipc.ready, /exited with code 1 before ready/)
+})
+
+test('host wrap rejects ready when stream closes before ready', async (t) => {
+  const [left] = pair()
+  const ipc = host.wrap(left)
+
+  left.destroy()
+
+  await t.exception(ipc.ready, /closed before ready/)
+})
+
+test('host wrap ignores exit after ready', async (t) => {
+  const [left, right] = pair()
+  const ipc = host.wrap(left)
+  const worker = protocol.attach(right)
+
+  worker.send('ready')
+  await ipc.ready
+
+  worker.send('exit', { code: 1 })
+  right.destroy()
+
+  t.is(await ipc.ready, undefined)
+})
+
 test('host wrap emits exit with code', (t) => {
   t.plan(1)
 
