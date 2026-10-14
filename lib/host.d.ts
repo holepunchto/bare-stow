@@ -12,8 +12,4 @@ declare class IPC {
 
 declare function wrap(stream: Duplex): IPC
 
-declare namespace wrap {
-  export { IPC }
-}
-
-export = wrap
+export { type IPC, wrap }
