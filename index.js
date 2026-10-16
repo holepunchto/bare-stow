@@ -87,7 +87,7 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   base = resolveBase(base, bundle)
 
-  bundle = rerootOffloaded(bundle.unmount(base), base, out, offloaded)
+  bundle = rerootOffloaded(bundle.unmount(base), base, bundleURL, offloaded)
 
   bundle.id = id(bundle).toString('hex')
 
@@ -203,20 +203,22 @@ function collectOffloaded(sink) {
   }
 }
 
-// Offloaded files are written next to the harness, so their resolutions are
-// rewritten to point beside the bundle, along with the directories that hold
-// them, as `bare-pack` does for a bundle packed with a base.
-function rerootOffloaded(bundle, base, out, offloaded) {
+// Offloaded files are written to a directory named after the bundle rather than
+// next to the harness, as a mirrored `node_modules` beside the harness would
+// shadow the packages it imports. Their resolutions are rewritten to point into
+// that directory, along with the directories that hold them.
+function rerootOffloaded(bundle, base, bundleURL, offloaded) {
   if (offloaded.length === 0) return bundle
 
-  const dir = new URL('./', out)
+  const name = path.basename(bundleURL.pathname) + '.d'
+  const dir = new URL(name + '/', bundleURL)
   const rewrites = new Map()
 
   for (const file of offloaded) {
     const relative = offloadedPath(file.url, base)
 
     let key = '/' + path.posix.relative(base.pathname, file.url.pathname)
-    let value = '/../' + relative
+    let value = '/../' + name + '/' + relative
 
     rewrites.set(key, value)
 
@@ -242,6 +244,8 @@ function rerootOffloaded(bundle, base, out, offloaded) {
   }
 
   bundle.resolutions = resolutions
+  bundle.addons = bundle.addons.map((href) => rewrites.get(href) || href)
+  bundle.assets = bundle.assets.map((href) => rewrites.get(href) || href)
 
   return bundle
 }

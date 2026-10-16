@@ -68,6 +68,8 @@ ipc.destroy()
 
 For the `bare-sidecar` target, `start()` accepts the options of `bare-sidecar`. The sidecar inherits the standard streams of the host unless `stdio` says otherwise.
 
+`start()` also accepts `timeout`, the number of milliseconds to wait for the worker to signal ready before rejecting and terminating it, and `grace`, the number of milliseconds a terminating worker gets to run `stop()` and exit before it is killed. `timeout` defaults to waiting indefinitely and `grace` to 5 seconds. The worker holds itself to the same `grace` whenever it shuts down, including when it receives `SIGTERM` or the host goes away without terminating it.
+
 ## Protocol
 
 The harness multiplexes a control channel and a user data channel over the underlying binary duplex stream. The `ipc` returned from `start()` is itself a duplex stream carrying the user data; control frames ride alongside it on the same handle. RPC libraries (such as `bare-rpc`) bind to `ipc` just like a raw stream.
@@ -114,43 +116,7 @@ const ipc = wrap(stream) // Any duplex byte stream
 await ipc.ready
 ```
 
-## API
-
-#### `const artifacts = stow(entry, target, out[, opts])`
-
-Bundle the module graph rooted at `entry` for a `target` runtime and write the resulting artifacts to disk at and alongside `out`. Returns an async generator that yields `{ url }` objects as each artifact is written, allowing callers to observe progress.
-
-`entry` is a `URL` (or `URL`-coercible string) pointing at the entry module. `target` selects the target runtime, given either as a built-in name (`'bare-sidecar'` or `'bare-worker'`) or as a [target provider](#targets-and-rpc-providers) object. Other targets ship as their own packages; require one and pass it as the provider. The target determines the harness format, bundle extension, host triples, and whether assets and addons are linked into the bundle or offloaded as sibling files. `out` is the output `URL` of the harness; the bundle is written next to it with the target's extension.
-
-The harness artifacts are yielded first: The harness itself at `out`, followed by a TypeScript declaration (`.d.ts`) alongside it so hosts importing the harness are typed. The bundle is yielded next, then any offloaded assets and native addons when the target supports offloading.
-
-Options include:
-
-```js
-opts = {
-  client,
-  server,
-  base,
-  hosts,
-  resolveTarget,
-  resolveRPC
-}
-```
-
-- `client`: The RPC library to wire into the harness as a client, given either as a built-in name (`'bare-rpc'`) or as an [RPC provider](#targets-and-rpc-providers) object.
-- `server`: The RPC library to wire into the bundle entry shim as a server, given either as a built-in name (`'bare-rpc'`) or as an [RPC provider](#targets-and-rpc-providers) object.
-- `base`: The base `URL` of the module graph, which must contain every module in the bundle. Defaults to the closest directory that does.
-- `hosts`: An array of host triples to build for. Must be a subset of the host triples supported by the target; passing a host the target does not support throws. Defaults to all host triples supported by the target.
-- `resolveTarget`: A function mapping a target name to a [target provider](#targets-and-rpc-providers) object, called when `target` is a name not in the built-in registry (which knows `'bare-sidecar'` and `'bare-worker'`).
-- `resolveRPC`: A function mapping an RPC library name to an [RPC provider](#targets-and-rpc-providers) object, called when `client` or `server` is a name not in the built-in registry (which only knows `'bare-rpc'`).
-
-Any additional options are forwarded to `bare-pack`. See <https://github.com/holepunchto/bare-pack> for the full set, including `builtins`, `imports`, `defer`, and `resolve`.
-
-#### TypeScript
-
-TypeScript modules are supported out of the box: `.ts`, `.mts`, and `.cts` sources are stripped of their type syntax with [`bare-type-stripper`](https://github.com/holepunchto/bare-type-stripper) as they are read, and their extensions are aliased to `.js`, `.mjs`, and `.cjs` respectively for module-type detection. The stripper only erases types, so the module system follows the aliased JavaScript extension. Because stripping is purely lexical, non-erasable constructs (`enum`, `namespace` with a body, parameter properties) throw, and JSX (`.tsx`) is not supported.
-
-### Targets and RPC providers
+## Targets and RPC providers
 
 The harness and RPC code generators are decoupled from the bundler: `target`, `client`, and `server` each accept a provider object directly, so generators can live outside `bare-stow`. Passing a name instead resolves it through `resolveTarget` / `resolveRPC`, which default to the built-in registries.
 
@@ -169,7 +135,7 @@ A target provider describes the runtime profile it owns and generates the harnes
 target = {
   name, // The target's name, used in diagnostics.
   linked, // Whether assets and addons are linked into the bundle.
-  offload, // Whether (and which) assets and addons are offloaded as sibling files.
+  offload, // Whether (and which) assets and addons are offloaded to a `<bundle>.d` directory next to the bundle.
   format, // The bundle encoding: 'bundle', 'bundle.cjs', 'bundle.mjs', or 'bundle.json'.
   encoding, // The string encoding for encoded formats, or null for raw bytes.
   extension, // The bundle file extension, e.g. '.bundle'.

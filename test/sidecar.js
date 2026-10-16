@@ -1,6 +1,7 @@
 const path = require('path')
 const { pathToFileURL, fileURLToPath } = require('url')
 const test = require('brittle')
+const Sidecar = require('bare-sidecar')
 const stow = require('..')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'fixtures') + '/')
@@ -137,7 +138,54 @@ test('sidecar harness surfaces unhandled rejections', async (t) => {
   t.is(err.message, 'rejected')
 })
 
-async function bundle(name) {
+test('sidecar harness rejects start when ready times out', async (t) => {
+  const harness = await bundle('hang')
+
+  await t.exception(harness.start({ timeout: 100 }), /timed out before ready/)
+})
+
+test('sidecar harness kills on terminate when stop never finishes', async (t) => {
+  const harness = await bundle('stall')
+  const { ipc } = await harness.start({ grace: 100 })
+
+  t.is(await ipc.terminate(), undefined)
+})
+
+test('sidecar harness kills on destroy when stop never finishes', async (t) => {
+  t.plan(1)
+
+  const harness = await bundle('stall')
+  const { ipc } = await harness.start({ grace: 100 })
+
+  ipc.on('close', () => t.pass('closed'))
+  ipc.destroy()
+})
+
+test('sidecar harness runs stop when the host crashes', async (t) => {
+  const output = await orphan('orphan', 'crash')
+
+  t.ok(output.includes('stopped'))
+})
+
+test('sidecar harness exits when the host crashes and stop never finishes', async (t) => {
+  const output = await orphan('stall', 'crash')
+
+  t.ok(output.includes('stopping'))
+})
+
+test('sidecar harness runs stop on SIGTERM when the host exits', async (t) => {
+  const output = await orphan('orphan', 'exit')
+
+  t.ok(output.includes('stopped'))
+})
+
+test('sidecar harness exits on SIGTERM when the host exits and stop never finishes', async (t) => {
+  const output = await orphan('stall', 'exit')
+
+  t.ok(output.includes('stopping'))
+})
+
+async function build(name) {
   const dir = new URL(name + '/', fixtures)
   const entry = new URL('core.js', dir)
   const out = new URL('out/index.js', dir)
@@ -146,5 +194,30 @@ async function bundle(name) {
     //
   }
 
-  return require(fileURLToPath(out))
+  return out
+}
+
+async function bundle(name) {
+  return require(fileURLToPath(await build(name)))
+}
+
+// Starts the harness from a separate host process that either exits or crashes
+// without terminating it. The sidecar inherits the host stdout, so the output
+// only ends once the sidecar has exited as well.
+async function orphan(name, mode) {
+  const out = await build(name)
+
+  const host = new Sidecar(
+    fileURLToPath(new URL('orphan/host.js', fixtures)),
+    [fileURLToPath(out), mode],
+    { stdio: ['ignore', 'pipe', 'inherit'] }
+  )
+
+  const chunks = []
+
+  host.stdout.on('data', (chunk) => chunks.push(chunk))
+
+  await new Promise((resolve) => host.stdout.on('end', resolve))
+
+  return Buffer.concat(chunks).toString()
 }

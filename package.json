@@ -15,6 +15,10 @@
     "./host": {
       "types": "./lib/host.d.ts",
       "default": "./lib/host.js"
+    },
+    "./runtime": {
+      "types": "./lib/runtime.d.ts",
+      "default": "./lib/runtime.js"
     }
   },
   "imports": {
@@ -70,6 +74,7 @@
     "bare-module-traverse": "^2.2.0",
     "bare-pack": "^2.2.0",
     "bare-path": "^3.0.0",
+    "bare-signals": "^5.0.0",
     "bare-stream": "^2.13.1",
     "bare-type-stripper": "^0.1.2",
     "paparam": "^1.5.0"
