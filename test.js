@@ -30,7 +30,8 @@ test('stow bare-sidecar yields harness + bundle', async (t) => {
   t.alike(artifacts, [
     { url: out },
     { url: new URL('out/index.d.ts', dir) },
-    { url: new URL('out/index.bundle', dir) }
+    { url: new URL('out/index.bundle', dir) },
+    ...prebuilds(dir)
   ])
 })
 
@@ -48,7 +49,8 @@ test('stow strips types from a TypeScript entry', async (t) => {
   t.alike(artifacts, [
     { url: out },
     { url: new URL('out/index.d.ts', dir) },
-    { url: new URL('out/index.bundle', dir) }
+    { url: new URL('out/index.bundle', dir) },
+    ...prebuilds(dir)
   ])
 })
 
@@ -150,7 +152,8 @@ test('stow accepts a subset of target hosts', async (t) => {
   t.alike(artifacts, [
     { url: out },
     { url: new URL('out/index.d.ts', dir) },
-    { url: new URL('out/index.bundle', dir) }
+    { url: new URL('out/index.bundle', dir) },
+    ...prebuilds(dir, ['darwin-arm64'])
   ])
 })
 
@@ -169,7 +172,8 @@ test('stow defaults base to the closest directory containing every module', asyn
     { url: out },
     { url: new URL('out/index.d.ts', dir) },
     { url: new URL('out/index.bundle', dir) },
-    { url: new URL('out/node_modules/dummy/asset.txt', dir) }
+    ...prebuilds(dir),
+    { url: new URL('out/index.bundle.d/node_modules/dummy/asset.txt', dir) }
   ])
 
   const bundle = Bundle.from(fs.readFileSync(fileURLToPath(new URL('out/index.bundle', dir))))
@@ -177,8 +181,10 @@ test('stow defaults base to the closest directory containing every module', asyn
   const resolutions = Object.values(bundle.resolutions).flatMap((imports) => Object.values(imports))
 
   t.ok(
-    resolutions.some((value) => JSON.stringify(value).includes('/../node_modules/dummy/asset.txt')),
-    'the offloaded asset resolves next to the bundle'
+    resolutions.some((value) =>
+      JSON.stringify(value).includes('/../index.bundle.d/node_modules/dummy/asset.txt')
+    ),
+    'the offloaded asset resolves into the directory of the bundle'
   )
 })
 
@@ -194,6 +200,27 @@ test('stow throws when base does not contain every module', async (t) => {
   }, /is outside base/)
 })
 
+test('stow throws when the harness imports a package it cannot resolve', async (t) => {
+  const dir = new URL('basic/', fixtures)
+  const entry = new URL('core.js', dir)
+  const out = new URL('out/unresolved.js', dir)
+
+  const target = {
+    ...sidecar,
+    generate() {
+      return [{ source: "require('bare-stow-missing')" }]
+    }
+  }
+
+  await t.exception(async () => {
+    for await (const _ of stow(entry, target, out)) {
+      //
+    }
+  }, /imports 'bare-stow-missing', which the package containing it does not depend on/)
+
+  t.absent(fs.existsSync(fileURLToPath(out)), 'nothing is written')
+})
+
 test('stow throws for host not supported by target', async (t) => {
   const dir = new URL('basic/', fixtures)
   const entry = new URL('core.js', dir)
@@ -207,3 +234,14 @@ test('stow throws for host not supported by target', async (t) => {
     }
   }, /Host 'ios-arm64' is not supported by target 'bare-sidecar'/)
 })
+
+// The `bare-signals` addon of the shim runtime is offloaded alongside every
+// bundle.
+function prebuilds(dir, hosts = sidecar.hosts) {
+  return hosts.map((host) => ({
+    url: new URL(
+      `out/index.bundle.d/node_modules/bare-signals/prebuilds/${host}/bare-signals.bare`,
+      dir
+    )
+  }))
+}

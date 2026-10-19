@@ -48,6 +48,40 @@ test('worker harness preserves write order', opts, async (t) => {
   await ipc.terminate()
 })
 
+test('worker harness rejects start when ready times out', opts, async (t) => {
+  const harness = await bundle('hang')
+
+  await t.exception(harness.start({ timeout: 100 }), /timed out before ready/)
+})
+
+test('worker harness kills on terminate when stop never finishes', opts, async (t) => {
+  const harness = await bundle('stall')
+  const { ipc } = await harness.start({ grace: 100 })
+
+  t.is(await ipc.terminate(), undefined)
+})
+
+test('worker harness kills on destroy when stop never finishes', opts, async (t) => {
+  t.plan(1)
+
+  const harness = await bundle('stall')
+  const { ipc } = await harness.start({ grace: 100 })
+
+  ipc.on('close', () => t.pass('closed'))
+  ipc.destroy()
+})
+
+test('worker harness closes after the worker exits', opts, async (t) => {
+  t.plan(2)
+
+  const harness = await bundle('echo')
+  const { ipc } = await harness.start()
+
+  ipc.on('close', () => t.pass('closed'))
+
+  t.is(await ipc.terminate(), 0)
+})
+
 async function bundle(name) {
   const dir = new URL(name + '/', fixtures)
   const entry = new URL('core.js', dir)

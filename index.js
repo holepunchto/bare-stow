@@ -4,6 +4,7 @@ const pack = require('bare-pack')
 const id = require('bare-bundle-id')
 const strip = require('bare-type-stripper')
 const { resolve } = require('bare-module-traverse')
+const lex = require('bare-module-lexer')
 const fs = require('./lib/fs')
 const shim = require('./lib/shim')
 const harness = require('./lib/target')
@@ -19,7 +20,7 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   const targetName = typeof target === 'string' ? target : t.name
 
-  entry = new URL(entry)
+  entry = await fs.resolveModule(new URL(entry))
   out = new URL(out)
 
   // The target may pin a module system; otherwise it follows the output path.
@@ -82,12 +83,13 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
     },
     readModule,
     fs.listPrefix,
+    fs.resolveModule,
     writeFile
   )
 
   base = resolveBase(base, bundle)
 
-  bundle = rerootOffloaded(bundle.unmount(base), base, out, offloaded)
+  bundle = rerootOffloaded(bundle.unmount(base), base, bundleURL, offloaded)
 
   bundle.id = id(bundle).toString('hex')
 
@@ -118,6 +120,10 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
     client: clientSetup
   })
 
+  for (const artifact of artifacts) {
+    if (!artifact.extension) await assertImportsResolve(artifact.source, out)
+  }
+
   // The first artifact is the harness written to `out`; any further artifacts
   // are siblings named after `out` with the artifact's own extension.
   for (const artifact of artifacts) {
@@ -129,6 +135,10 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   await fs.writeFile(bundleURL, encodeBundle(bundle, t.format, t.encoding ?? 'utf8'))
   yield { url: bundleURL }
+
+  // Offloaded files are collected in the order their reads complete, so they
+  // are sorted to keep the output stable.
+  offloaded.sort((a, b) => (a.url.href < b.url.href ? -1 : a.url.href > b.url.href ? 1 : 0))
 
   for (const artifact of offloaded) {
     await fs.writeFile(artifact.url, artifact.source)
@@ -203,20 +213,22 @@ function collectOffloaded(sink) {
   }
 }
 
-// Offloaded files are written next to the harness, so their resolutions are
-// rewritten to point beside the bundle, along with the directories that hold
-// them, as `bare-pack` does for a bundle packed with a base.
-function rerootOffloaded(bundle, base, out, offloaded) {
+// Offloaded files are written to a directory named after the bundle rather than
+// next to the harness, as a mirrored `node_modules` beside the harness would
+// shadow the packages it imports. Their resolutions are rewritten to point into
+// that directory, along with the directories that hold them.
+function rerootOffloaded(bundle, base, bundleURL, offloaded) {
   if (offloaded.length === 0) return bundle
 
-  const dir = new URL('./', out)
+  const name = path.basename(bundleURL.pathname) + '.d'
+  const dir = new URL(name + '/', bundleURL)
   const rewrites = new Map()
 
   for (const file of offloaded) {
     const relative = offloadedPath(file.url, base)
 
     let key = '/' + path.posix.relative(base.pathname, file.url.pathname)
-    let value = '/../' + relative
+    let value = '/../' + name + '/' + relative
 
     rewrites.set(key, value)
 
@@ -242,6 +254,8 @@ function rerootOffloaded(bundle, base, out, offloaded) {
   }
 
   bundle.resolutions = resolutions
+  bundle.addons = bundle.addons.map((href) => rewrites.get(href) || href)
+  bundle.assets = bundle.assets.map((href) => rewrites.get(href) || href)
 
   return bundle
 }
@@ -272,6 +286,44 @@ function rewriteImports(imports, rewrites) {
 
 function isTerminator(input) {
   return input === '' || input.endsWith('/') || input.endsWith(':')
+}
+
+async function assertImportsResolve(source, out) {
+  for (const entry of lex(source).imports) {
+    const { specifier } = entry
+
+    if (specifier.startsWith('.') || specifier.startsWith('/')) continue
+
+    if (await resolves(entry, out)) continue
+
+    throw new Error(
+      `Harness '${fileURLToPath(out)}' imports '${specifier}', which the package containing it does not depend on`
+    )
+  }
+}
+
+async function resolves(entry, parentURL) {
+  const resolver = resolve.bare(entry, parentURL)
+
+  let next = resolver.next()
+
+  while (next.done !== true) {
+    const value = next.value
+
+    if (value.package) {
+      const source = await fs.readModule(value.package)
+
+      next = resolver.next(source === null ? null : JSON.parse(source))
+    } else {
+      const exists = await fs.isFile(value.resolution)
+
+      if (exists) return true
+
+      next = resolver.next(false)
+    }
+  }
+
+  return false
 }
 
 async function resolveModule(out) {

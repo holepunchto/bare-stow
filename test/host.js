@@ -31,6 +31,7 @@ test('host wrap rejects ready when worker exits before ready', async (t) => {
   const ipc = host.wrap(left)
   const worker = protocol.attach(right)
 
+  worker.on('terminate', () => right.destroy())
   worker.send('exit', { code: 1 })
 
   await t.exception(ipc.ready, /exited with code 1 before ready/)
@@ -122,6 +123,74 @@ test('host emits close when underlying stream closes', (t) => {
   ipc.on('close', () => t.pass('close fired'))
 
   left.destroy()
+})
+
+test('host wrap rejects ready and terminates the worker on timeout', (t) => {
+  t.plan(2)
+
+  const [left, right] = pair()
+  const ipc = host.wrap(left, { timeout: 10 })
+  const worker = protocol.attach(right)
+
+  worker.on('terminate', () => {
+    t.pass('worker received terminate')
+    right.destroy()
+  })
+
+  t.exception(ipc.ready, /timed out before ready/)
+})
+
+test('host terminate kills the worker after the grace period', async (t) => {
+  const [left, right] = pair()
+  const ipc = host.wrap(left, { grace: 10 })
+  const worker = protocol.attach(right)
+
+  worker.send('ready')
+  await ipc.ready
+
+  t.is(await ipc.terminate(), undefined)
+  t.ok(left.destroyed)
+})
+
+test('host terminate calls kill after the grace period', async (t) => {
+  t.plan(2)
+
+  const [left, right] = pair()
+  const ipc = host.wrap(left, {
+    grace: 10,
+    kill() {
+      t.pass('kill called')
+      right.destroy()
+    }
+  })
+  const worker = protocol.attach(right)
+
+  worker.send('ready')
+  await ipc.ready
+
+  t.is(await ipc.terminate(), undefined)
+})
+
+test('host destroy kills the worker after the grace period', (t) => {
+  t.plan(1)
+
+  const [left] = pair()
+  const ipc = host.wrap(left, { grace: 10 })
+
+  ipc.on('close', () => t.ok(left.destroyed))
+
+  ipc.destroy()
+})
+
+test('host terminate resolves once the stream has closed', async (t) => {
+  const [left] = pair()
+  const ipc = host.wrap(left)
+
+  left.destroy()
+
+  await t.exception(ipc.ready, /closed before ready/)
+
+  t.is(await ipc.terminate(), undefined)
 })
 
 function pair() {

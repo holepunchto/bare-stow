@@ -1,16 +1,15 @@
 /* eslint-disable */
 
-exports['harness bare-sidecar - harness - 0'] = `const path = require('path')
-const Sidecar = require('bare-sidecar')
+exports['harness bare-sidecar - harness - 0'] = `const Sidecar = require('bare-sidecar')
 const stow = require('bare-stow/host')
 
-const bundle = path.join(__dirname, "./core.bundle")
+const bundle = require.resolve("./core.bundle")
 
 module.exports = {
-  async start(opts = {}) {
+  async start({ timeout, grace, ...opts } = {}) {
     const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
-    const ipc = stow.wrap(sidecar)
+    const ipc = stow.wrap(sidecar, { timeout, grace })
 
     await ipc.ready
 
@@ -19,21 +18,22 @@ module.exports = {
 }
 `
 
-exports['harness bare-sidecar - types - 0'] =
-  `export function start(opts?: import('bare-sidecar').SidecarOptions): Promise<{ ipc: import('bare-stow/host').IPC }>
+exports['harness bare-sidecar - types - 0'] = `export function start(
+  opts?: import('bare-sidecar').SidecarOptions & Omit<import('bare-stow/host').IPCOptions, 'kill'>
+): Promise<{ ipc: import('bare-stow/host').IPC }>
 `
 
-exports['harness bare-sidecar with bare-rpc client - harness - 0'] = `const path = require('path')
-const Sidecar = require('bare-sidecar')
+exports['harness bare-sidecar with bare-rpc client - harness - 0'] =
+  `const Sidecar = require('bare-sidecar')
 const stow = require('bare-stow/host')
 
-const bundle = path.join(__dirname, "./core.bundle")
+const bundle = require.resolve("./core.bundle")
 
 module.exports = {
-  async start(opts = {}) {
+  async start({ timeout, grace, ...opts } = {}) {
     const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
-    const ipc = stow.wrap(sidecar)
+    const ipc = stow.wrap(sidecar, { timeout, grace })
 
     const RPC = require('bare-rpc')
 
@@ -49,20 +49,20 @@ module.exports = {
 }
 `
 
-exports['harness bare-sidecar with bare-rpc client - types - 0'] =
-  `export function start(opts?: import('bare-sidecar').SidecarOptions): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
+exports['harness bare-sidecar with bare-rpc client - types - 0'] = `export function start(
+  opts?: import('bare-sidecar').SidecarOptions & Omit<import('bare-stow/host').IPCOptions, 'kill'>
+): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
 `
 
 exports['harness bare-sidecar as esm - harness - 0'] = `import Sidecar from 'bare-sidecar'
 import stow from 'bare-stow/host'
-import { fileURLToPath } from 'url'
 
-const bundle = fileURLToPath(new URL("./core.bundle", import.meta.url))
+const bundle = new URL(import.meta.resolve("./core.bundle"))
 
-export async function start(opts = {}) {
+export async function start({ timeout, grace, ...opts } = {}) {
   const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
-  const ipc = stow.wrap(sidecar)
+  const ipc = stow.wrap(sidecar, { timeout, grace })
 
   await ipc.ready
 
@@ -70,21 +70,21 @@ export async function start(opts = {}) {
 }
 `
 
-exports['harness bare-sidecar as esm - types - 0'] =
-  `export function start(opts?: import('bare-sidecar').SidecarOptions): Promise<{ ipc: import('bare-stow/host').IPC }>
+exports['harness bare-sidecar as esm - types - 0'] = `export function start(
+  opts?: import('bare-sidecar').SidecarOptions & Omit<import('bare-stow/host').IPCOptions, 'kill'>
+): Promise<{ ipc: import('bare-stow/host').IPC }>
 `
 
 exports['harness bare-sidecar as esm with bare-rpc client - harness - 0'] =
   `import Sidecar from 'bare-sidecar'
 import stow from 'bare-stow/host'
-import { fileURLToPath } from 'url'
 
-const bundle = fileURLToPath(new URL("./core.bundle", import.meta.url))
+const bundle = new URL(import.meta.resolve("./core.bundle"))
 
-export async function start(opts = {}) {
+export async function start({ timeout, grace, ...opts } = {}) {
   const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
-  const ipc = stow.wrap(sidecar)
+  const ipc = stow.wrap(sidecar, { timeout, grace })
 
   const { default: RPC } = await import('bare-rpc')
 
@@ -99,21 +99,24 @@ export async function start(opts = {}) {
 }
 `
 
-exports['harness bare-sidecar as esm with bare-rpc client - types - 0'] =
-  `export function start(opts?: import('bare-sidecar').SidecarOptions): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
+exports['harness bare-sidecar as esm with bare-rpc client - types - 0'] = `export function start(
+  opts?: import('bare-sidecar').SidecarOptions & Omit<import('bare-stow/host').IPCOptions, 'kill'>
+): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
 `
 
-exports['harness bare-worker - harness - 0'] = `const path = require('bare-path')
-const Worker = require('bare-worker')
+exports['harness bare-worker - harness - 0'] = `const Worker = require('bare-worker')
 const stow = require('bare-stow/host')
 
-const bundle = path.join(__dirname, "./core.bundle")
+const bundle = require.resolve("./core.bundle")
 
 module.exports = {
-  async start(opts = {}) {
+  async start({ timeout, grace, ...opts } = {}) {
     const worker = new Worker(bundle, opts)
 
-    const ipc = stow.wrap(worker.IPC)
+    const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
+
+    // The IPC stream of a worker ends, but never closes, when its thread exits.
+    worker.IPC.on('end', () => worker.IPC.destroy())
 
     await ipc.ready
 
@@ -122,22 +125,25 @@ module.exports = {
 }
 `
 
-exports['harness bare-worker - types - 0'] =
-  `export function start(opts?: import('bare-worker').WorkerOptions): Promise<{ ipc: import('bare-stow/host').IPC }>
+exports['harness bare-worker - types - 0'] = `export function start(
+  opts?: import('bare-worker').WorkerOptions & Omit<import('bare-stow/host').IPCOptions, 'kill'>
+): Promise<{ ipc: import('bare-stow/host').IPC }>
 `
 
 exports['harness bare-worker with bare-rpc client - harness - 0'] =
-  `const path = require('bare-path')
-const Worker = require('bare-worker')
+  `const Worker = require('bare-worker')
 const stow = require('bare-stow/host')
 
-const bundle = path.join(__dirname, "./core.bundle")
+const bundle = require.resolve("./core.bundle")
 
 module.exports = {
-  async start(opts = {}) {
+  async start({ timeout, grace, ...opts } = {}) {
     const worker = new Worker(bundle, opts)
 
-    const ipc = stow.wrap(worker.IPC)
+    const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
+
+    // The IPC stream of a worker ends, but never closes, when its thread exits.
+    worker.IPC.on('end', () => worker.IPC.destroy())
 
     const RPC = require('bare-rpc')
 
@@ -153,20 +159,23 @@ module.exports = {
 }
 `
 
-exports['harness bare-worker with bare-rpc client - types - 0'] =
-  `export function start(opts?: import('bare-worker').WorkerOptions): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
+exports['harness bare-worker with bare-rpc client - types - 0'] = `export function start(
+  opts?: import('bare-worker').WorkerOptions & Omit<import('bare-stow/host').IPCOptions, 'kill'>
+): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
 `
 
 exports['harness bare-worker as esm - harness - 0'] = `import Worker from 'bare-worker'
 import stow from 'bare-stow/host'
-import { fileURLToPath } from 'bare-url'
 
-const bundle = fileURLToPath(new URL("./core.bundle", import.meta.url))
+const bundle = import.meta.resolve("./core.bundle")
 
-export async function start(opts = {}) {
+export async function start({ timeout, grace, ...opts } = {}) {
   const worker = new Worker(bundle, opts)
 
-  const ipc = stow.wrap(worker.IPC)
+  const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
+
+  // The IPC stream of a worker ends, but never closes, when its thread exits.
+  worker.IPC.on('end', () => worker.IPC.destroy())
 
   await ipc.ready
 
@@ -174,21 +183,24 @@ export async function start(opts = {}) {
 }
 `
 
-exports['harness bare-worker as esm - types - 0'] =
-  `export function start(opts?: import('bare-worker').WorkerOptions): Promise<{ ipc: import('bare-stow/host').IPC }>
+exports['harness bare-worker as esm - types - 0'] = `export function start(
+  opts?: import('bare-worker').WorkerOptions & Omit<import('bare-stow/host').IPCOptions, 'kill'>
+): Promise<{ ipc: import('bare-stow/host').IPC }>
 `
 
 exports['harness bare-worker as esm with bare-rpc client - harness - 0'] =
   `import Worker from 'bare-worker'
 import stow from 'bare-stow/host'
-import { fileURLToPath } from 'bare-url'
 
-const bundle = fileURLToPath(new URL("./core.bundle", import.meta.url))
+const bundle = import.meta.resolve("./core.bundle")
 
-export async function start(opts = {}) {
+export async function start({ timeout, grace, ...opts } = {}) {
   const worker = new Worker(bundle, opts)
 
-  const ipc = stow.wrap(worker.IPC)
+  const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
+
+  // The IPC stream of a worker ends, but never closes, when its thread exits.
+  worker.IPC.on('end', () => worker.IPC.destroy())
 
   const { default: RPC } = await import('bare-rpc')
 
@@ -203,8 +215,9 @@ export async function start(opts = {}) {
 }
 `
 
-exports['harness bare-worker as esm with bare-rpc client - types - 0'] =
-  `export function start(opts?: import('bare-worker').WorkerOptions): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
+exports['harness bare-worker as esm with bare-rpc client - types - 0'] = `export function start(
+  opts?: import('bare-worker').WorkerOptions & Omit<import('bare-stow/host').IPCOptions, 'kill'>
+): Promise<{ ipc: import('bare-stow/host').IPC; rpc: import('bare-rpc') }>
 `
 
 /* eslint-enable */
