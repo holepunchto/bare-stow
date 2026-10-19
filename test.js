@@ -200,6 +200,27 @@ test('stow throws when base does not contain every module', async (t) => {
   }, /is outside base/)
 })
 
+test('stow throws when the harness imports a package it cannot resolve', async (t) => {
+  const dir = new URL('basic/', fixtures)
+  const entry = new URL('core.js', dir)
+  const out = new URL('out/unresolved.js', dir)
+
+  const target = {
+    ...sidecar,
+    generate() {
+      return [{ source: "require('bare-stow-missing')" }]
+    }
+  }
+
+  await t.exception(async () => {
+    for await (const _ of stow(entry, target, out)) {
+      //
+    }
+  }, /imports 'bare-stow-missing', which the package containing it does not depend on/)
+
+  t.absent(fs.existsSync(fileURLToPath(out)), 'nothing is written')
+})
+
 test('stow throws for host not supported by target', async (t) => {
   const dir = new URL('basic/', fixtures)
   const entry = new URL('core.js', dir)
@@ -215,12 +236,11 @@ test('stow throws for host not supported by target', async (t) => {
 })
 
 // The `bare-signals` addon of the shim runtime is offloaded alongside every
-// bundle. As `bare-stow` links to itself here, it resolves through the
-// `node_modules` of `bare-stow`.
+// bundle.
 function prebuilds(dir, hosts = sidecar.hosts) {
   return hosts.map((host) => ({
     url: new URL(
-      `out/index.bundle.d/node_modules/bare-stow/node_modules/bare-signals/prebuilds/${host}/bare-signals.bare`,
+      `out/index.bundle.d/node_modules/bare-signals/prebuilds/${host}/bare-signals.bare`,
       dir
     )
   }))

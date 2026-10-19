@@ -66,6 +66,8 @@ ipc.on('exit', (code) => {
 ipc.destroy()
 ```
 
+The harness imports its runtime by name, `bare-stow/host` along with `bare-sidecar` or `bare-worker` depending on the target, so the package that the harness is written into must depend on both. Relying on another package to bring them in only works while a package manager happens to hoist them, and not at all under an isolated layout such as that of pnpm. `stow()` resolves every import of the harness from `out` before writing anything and throws if one of them can't be found.
+
 For the `bare-sidecar` target, `start()` accepts the options of `bare-sidecar`. The sidecar inherits the standard streams of the host unless `stdio` says otherwise.
 
 `start()` also accepts `timeout`, the number of milliseconds to wait for the worker to signal ready before rejecting and terminating it, and `grace`, the number of milliseconds a terminating worker gets to run `stop()` and exit before it is killed. `timeout` defaults to waiting indefinitely and `grace` to 5 seconds. The worker holds itself to the same `grace` whenever it shuts down, including when it receives `SIGTERM` or the host goes away without terminating it.

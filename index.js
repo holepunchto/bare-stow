@@ -4,6 +4,7 @@ const pack = require('bare-pack')
 const id = require('bare-bundle-id')
 const strip = require('bare-type-stripper')
 const { resolve } = require('bare-module-traverse')
+const lex = require('bare-module-lexer')
 const fs = require('./lib/fs')
 const shim = require('./lib/shim')
 const harness = require('./lib/target')
@@ -19,7 +20,7 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   const targetName = typeof target === 'string' ? target : t.name
 
-  entry = new URL(entry)
+  entry = await fs.resolveModule(new URL(entry))
   out = new URL(out)
 
   // The target may pin a module system; otherwise it follows the output path.
@@ -82,6 +83,7 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
     },
     readModule,
     fs.listPrefix,
+    fs.resolveModule,
     writeFile
   )
 
@@ -117,6 +119,10 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
     module,
     client: clientSetup
   })
+
+  for (const artifact of artifacts) {
+    if (!artifact.extension) await assertImportsResolve(artifact.source, out)
+  }
 
   // The first artifact is the harness written to `out`; any further artifacts
   // are siblings named after `out` with the artifact's own extension.
@@ -276,6 +282,44 @@ function rewriteImports(imports, rewrites) {
 
 function isTerminator(input) {
   return input === '' || input.endsWith('/') || input.endsWith(':')
+}
+
+async function assertImportsResolve(source, out) {
+  for (const entry of lex(source).imports) {
+    const { specifier } = entry
+
+    if (specifier.startsWith('.') || specifier.startsWith('/')) continue
+
+    if (await resolves(entry, out)) continue
+
+    throw new Error(
+      `Harness '${fileURLToPath(out)}' imports '${specifier}', which the package containing it does not depend on`
+    )
+  }
+}
+
+async function resolves(entry, parentURL) {
+  const resolver = resolve.bare(entry, parentURL)
+
+  let next = resolver.next()
+
+  while (next.done !== true) {
+    const value = next.value
+
+    if (value.package) {
+      const source = await fs.readModule(value.package)
+
+      next = resolver.next(source === null ? null : JSON.parse(source))
+    } else {
+      const exists = await fs.isFile(value.resolution)
+
+      if (exists) return true
+
+      next = resolver.next(false)
+    }
+  }
+
+  return false
 }
 
 async function resolveModule(out) {
