@@ -136,6 +136,10 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
   await fs.writeFile(bundleURL, encodeBundle(bundle, t.format, t.encoding ?? 'utf8'))
   yield { url: bundleURL }
 
+  // Offloaded files are collected in the order their reads complete, so they
+  // are sorted to keep the output stable.
+  offloaded.sort((a, b) => (a.url.href < b.url.href ? -1 : a.url.href > b.url.href ? 1 : 0))
+
   for (const artifact of offloaded) {
     await fs.writeFile(artifact.url, artifact.source)
     yield { url: artifact.url }

@@ -56,6 +56,29 @@ test('protocol carries control payloads', (t) => {
   worker.send('exit', { code: 42 })
 })
 
+test('protocol closes without error when the transport is reset', (t) => {
+  t.plan(1)
+
+  const [left] = pair()
+  const host = protocol.attach(left)
+
+  host.on('error', () => t.fail('reset surfaced as an error'))
+  host.on('close', () => t.pass('closed'))
+
+  left.destroy(Object.assign(new Error('connection reset by peer'), { code: 'ECONNRESET' }))
+})
+
+test('protocol surfaces other transport errors', (t) => {
+  t.plan(1)
+
+  const [left] = pair()
+  const host = protocol.attach(left)
+
+  host.on('error', (err) => t.is(err.code, 'EPIPE'))
+
+  left.destroy(Object.assign(new Error('broken pipe'), { code: 'EPIPE' }))
+})
+
 function pair() {
   let a, b
 
