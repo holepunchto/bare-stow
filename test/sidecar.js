@@ -1,10 +1,15 @@
 const path = require('path')
 const { pathToFileURL, fileURLToPath } = require('url')
 const test = require('brittle')
+const { isWindows } = require('which-runtime')
 const Sidecar = require('bare-sidecar')
 const stow = require('..')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'fixtures') + '/')
+
+// On Windows, a child process is killed along with its host and SIGTERM can't
+// be handled, so the sidecar never outlives its host to run `stop()`.
+const outlivesHost = { skip: isWindows }
 
 test('sidecar harness echoes user data', async (t) => {
   const harness = await bundle('echo')
@@ -161,29 +166,37 @@ test('sidecar harness kills on destroy when stop never finishes', async (t) => {
   ipc.destroy()
 })
 
-test('sidecar harness runs stop when the host crashes', async (t) => {
+test('sidecar harness runs stop when the host crashes', outlivesHost, async (t) => {
   const output = await orphan('orphan', 'crash')
 
   t.ok(output.includes('stopped'))
 })
 
-test('sidecar harness exits when the host crashes and stop never finishes', async (t) => {
-  const output = await orphan('stall', 'crash')
+test(
+  'sidecar harness exits when the host crashes and stop never finishes',
+  outlivesHost,
+  async (t) => {
+    const output = await orphan('stall', 'crash')
 
-  t.ok(output.includes('stopping'))
-})
+    t.ok(output.includes('stopping'))
+  }
+)
 
-test('sidecar harness runs stop on SIGTERM when the host exits', async (t) => {
+test('sidecar harness runs stop on SIGTERM when the host exits', outlivesHost, async (t) => {
   const output = await orphan('orphan', 'exit')
 
   t.ok(output.includes('stopped'))
 })
 
-test('sidecar harness exits on SIGTERM when the host exits and stop never finishes', async (t) => {
-  const output = await orphan('stall', 'exit')
+test(
+  'sidecar harness exits on SIGTERM when the host exits and stop never finishes',
+  outlivesHost,
+  async (t) => {
+    const output = await orphan('stall', 'exit')
 
-  t.ok(output.includes('stopping'))
-})
+    t.ok(output.includes('stopping'))
+  }
+)
 
 async function build(name) {
   const dir = new URL(name + '/', fixtures)

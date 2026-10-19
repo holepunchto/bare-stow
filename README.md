@@ -70,7 +70,7 @@ The harness imports its runtime by name, `bare-stow/host` along with `bare-sidec
 
 For the `bare-sidecar` target, `start()` accepts the options of `bare-sidecar`. The sidecar inherits the standard streams of the host unless `stdio` says otherwise.
 
-`start()` also accepts `timeout`, the number of milliseconds to wait for the worker to signal ready before rejecting and terminating it, and `grace`, the number of milliseconds a terminating worker gets to run `stop()` and exit before it is killed. `timeout` defaults to waiting indefinitely and `grace` to 5 seconds. The worker holds itself to the same `grace` whenever it shuts down, including when it receives `SIGTERM` or the host goes away without terminating it.
+`start()` also accepts `timeout`, the number of milliseconds to wait for the worker to signal ready before rejecting and terminating it, and `grace`, the number of milliseconds a terminating worker gets to run `stop()` and exit before it is killed. `timeout` defaults to waiting indefinitely and `grace` to 5 seconds. The worker holds itself to the same `grace` whenever it shuts down, including when it receives `SIGTERM` or the host goes away without terminating it. On Windows, a sidecar is killed along with its host instead, so `stop()` only runs when the host terminates it.
 
 ## Protocol
 
