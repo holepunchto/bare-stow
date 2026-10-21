@@ -82,7 +82,7 @@
   "devDependencies": {
     "bare-os": "^3.0.0",
     "bare-rpc": "^1.3.2",
-    "bare-sidecar": "^0.5.10",
+    "bare-sidecar": "^0.5.11",
     "bare-worker": "^4.3.0",
     "brittle": "^4.0.2",
     "lunte": "^1.7.0",
