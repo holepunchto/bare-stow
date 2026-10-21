@@ -9,7 +9,9 @@ module.exports = {
   async start({ timeout, grace, ...opts } = {}) {
     const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
-    const ipc = stow.wrap(sidecar, { timeout, grace })
+    const ipc = stow.wrap(sidecar, { kill: () => sidecar.kill('SIGKILL'), timeout, grace })
+
+    sidecar.on('exit', (code, signal) => ipc.exited(code, signal))
 
     await ipc.ready
 
@@ -33,7 +35,9 @@ module.exports = {
   async start({ timeout, grace, ...opts } = {}) {
     const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
-    const ipc = stow.wrap(sidecar, { timeout, grace })
+    const ipc = stow.wrap(sidecar, { kill: () => sidecar.kill('SIGKILL'), timeout, grace })
+
+    sidecar.on('exit', (code, signal) => ipc.exited(code, signal))
 
     const RPC = require('bare-rpc')
 
@@ -62,7 +66,9 @@ const bundle = new URL(import.meta.resolve("./core.bundle"))
 export async function start({ timeout, grace, ...opts } = {}) {
   const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
-  const ipc = stow.wrap(sidecar, { timeout, grace })
+  const ipc = stow.wrap(sidecar, { kill: () => sidecar.kill('SIGKILL'), timeout, grace })
+
+  sidecar.on('exit', (code, signal) => ipc.exited(code, signal))
 
   await ipc.ready
 
@@ -84,7 +90,9 @@ const bundle = new URL(import.meta.resolve("./core.bundle"))
 export async function start({ timeout, grace, ...opts } = {}) {
   const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
-  const ipc = stow.wrap(sidecar, { timeout, grace })
+  const ipc = stow.wrap(sidecar, { kill: () => sidecar.kill('SIGKILL'), timeout, grace })
+
+  sidecar.on('exit', (code, signal) => ipc.exited(code, signal))
 
   const { default: RPC } = await import('bare-rpc')
 
@@ -118,6 +126,8 @@ module.exports = {
     // The IPC stream of a worker ends, but never closes, when its thread exits.
     worker.IPC.on('end', () => worker.IPC.destroy())
 
+    worker.on('exit', (code) => ipc.exited(code))
+
     await ipc.ready
 
     return { ipc }
@@ -144,6 +154,8 @@ module.exports = {
 
     // The IPC stream of a worker ends, but never closes, when its thread exits.
     worker.IPC.on('end', () => worker.IPC.destroy())
+
+    worker.on('exit', (code) => ipc.exited(code))
 
     const RPC = require('bare-rpc')
 
@@ -177,6 +189,8 @@ export async function start({ timeout, grace, ...opts } = {}) {
   // The IPC stream of a worker ends, but never closes, when its thread exits.
   worker.IPC.on('end', () => worker.IPC.destroy())
 
+  worker.on('exit', (code) => ipc.exited(code))
+
   await ipc.ready
 
   return { ipc }
@@ -201,6 +215,8 @@ export async function start({ timeout, grace, ...opts } = {}) {
 
   // The IPC stream of a worker ends, but never closes, when its thread exits.
   worker.IPC.on('end', () => worker.IPC.destroy())
+
+  worker.on('exit', (code) => ipc.exited(code))
 
   const { default: RPC } = await import('bare-rpc')
 

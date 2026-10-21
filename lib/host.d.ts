@@ -32,6 +32,14 @@ interface IPC extends Protocol {
    * @returns The worker's exit `code`, or `undefined` if it closed without signaling one.
    */
   terminate(): Promise<number | undefined>
+  /**
+   * Report that the worker has exited, as observed by the transport. If the worker exited without
+   * saying why and was not asked to, the handle is destroyed with an error carrying the reason as
+   * `exitCode` and `signalCode`.
+   * @param code - The exit code of the worker, or `null` if it was killed by a signal.
+   * @param signal - The signal that killed the worker, or `null` (default `null`).
+   */
+  exited(code: number | null, signal?: string | null): void
 }
 
 declare class IPC {

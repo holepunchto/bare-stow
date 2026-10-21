@@ -193,6 +193,71 @@ test('host terminate resolves once the stream has closed', async (t) => {
   t.is(await ipc.terminate(), undefined)
 })
 
+test('host exited before ready rejects ready with the exit code', async (t) => {
+  const [left] = pair()
+  const ipc = host.wrap(left, { grace: 10 })
+
+  ipc.exited(3)
+
+  const err = await ipc.ready.catch((err) => err)
+
+  t.is(err.message, 'Worker exited with code 3')
+  t.is(err.exitCode, 3)
+})
+
+test('host exited after ready emits an error with the signal', async (t) => {
+  const [left, right] = pair()
+  const ipc = host.wrap(left, { grace: 10 })
+  const worker = protocol.attach(right)
+
+  worker.send('ready')
+  await ipc.ready
+
+  const error = new Promise((resolve) => ipc.once('error', resolve))
+
+  ipc.exited(null, 'SIGKILL')
+
+  const err = await error
+
+  t.is(err.message, 'Worker was killed by SIGKILL')
+  t.is(err.signalCode, 'SIGKILL')
+})
+
+test('host exited is ignored after an exit frame', async (t) => {
+  const [left, right] = pair()
+  const ipc = host.wrap(left)
+  const worker = protocol.attach(right)
+
+  ipc.on('error', () => t.fail('reported as an error'))
+
+  worker.send('ready')
+  await ipc.ready
+
+  worker.send('exit', { code: 0 })
+  await new Promise((resolve) => ipc.once('exit', resolve))
+
+  ipc.exited(0)
+
+  t.absent(ipc.destroying)
+})
+
+test('host exited is ignored while terminating', async (t) => {
+  const [left, right] = pair()
+  const ipc = host.wrap(left, { grace: 10 })
+  const worker = protocol.attach(right)
+
+  ipc.on('error', () => t.fail('reported as an error'))
+
+  worker.send('ready')
+  await ipc.ready
+
+  const terminated = ipc.terminate()
+
+  ipc.exited(null, 'SIGKILL')
+
+  t.is(await terminated, undefined)
+})
+
 function pair() {
   let a, b
 
