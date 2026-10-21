@@ -91,7 +91,7 @@ The `ipc` handle exposes the lifecycle as events and methods on the same duplex:
 
 - `ipc.ready`: A promise that resolves once the worker has signaled ready. Rejects if the worker errors before ready.
 - `ipc.on('exit', code)`: Emitted when the worker signals exit. `code` carries the exit code.
-- `ipc.on('error', err)`: Emitted when the worker reports a fault, or when the underlying transport errors. Either way the `ipc` is destroyed.
+- `ipc.on('error', err)`: Emitted when the worker reports a fault, when it exits without saying why, such as through `Bare.exit()`, a signal, or a crash, or when the underlying transport errors. Either way the `ipc` is destroyed. For a worker that exited without saying why, `err.exitCode` and `err.signalCode` carry the reason.
 - `ipc.on('close')`: Emitted when the underlying transport closes.
 - `ipc.destroy()`: Standard stream destroy. Sends a `terminate` control frame to the worker and waits for the underlying transport to close.
 - `ipc.terminate()`: Like `destroy()` but resolves with the worker's exit code.

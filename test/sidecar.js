@@ -1,7 +1,7 @@
 const path = require('path')
 const { pathToFileURL, fileURLToPath } = require('url')
 const test = require('brittle')
-const { isWindows } = require('which-runtime')
+const { isBare, isWindows } = require('which-runtime')
 const Sidecar = require('bare-sidecar')
 const stow = require('..')
 
@@ -122,7 +122,7 @@ test('sidecar harness rejects start when entry throws at top level', async (t) =
 test('sidecar harness rejects start when entry exits before ready', async (t) => {
   const harness = await bundle('exit')
 
-  await t.exception(harness.start(), /closed before ready/)
+  await t.exception(harness.start(), /exited with code 3/)
 })
 
 test('sidecar harness surfaces uncaught exceptions', async (t) => {
@@ -166,6 +166,45 @@ test('sidecar harness kills on destroy when stop never finishes', async (t) => {
   ipc.destroy()
 })
 
+test('sidecar harness reports a worker that exits abruptly', async (t) => {
+  const harness = await bundle('crash')
+  const { ipc } = await harness.start()
+
+  const err = await new Promise((resolve) => ipc.once('error', resolve))
+
+  t.is(err.message, 'Worker exited with code 5')
+  t.is(err.exitCode, 5)
+})
+
+test('sidecar harness reports a worker that is killed', outlivesHost, async (t) => {
+  const harness = await bundle('blocked')
+  const { ipc } = await harness.start()
+
+  const pid = Number(await new Promise((resolve) => ipc.once('data', resolve)))
+
+  const error = new Promise((resolve) => ipc.once('error', resolve))
+
+  kill(pid, 'SIGKILL')
+
+  const err = await error
+
+  t.is(err.message, 'Worker was killed by SIGKILL')
+  t.is(err.signalCode, 'SIGKILL')
+})
+
+test('sidecar harness kills a blocked worker after the grace period', async (t) => {
+  const harness = await bundle('blocked')
+  const { ipc } = await harness.start({ grace: 100 })
+
+  const pid = Number(await new Promise((resolve) => ipc.once('data', resolve)))
+
+  // Give the worker time to block its event loop.
+  await new Promise((resolve) => setTimeout(resolve, 200))
+
+  t.is(await ipc.terminate(), undefined)
+  t.absent(isRunning(pid), 'the process is gone')
+})
+
 test('sidecar harness runs stop when the host crashes', outlivesHost, async (t) => {
   const output = await orphan('orphan', 'crash')
 
@@ -197,6 +236,21 @@ test(
     t.ok(output.includes('stopping'))
   }
 )
+
+function isRunning(pid) {
+  try {
+    kill(pid, 0)
+
+    return true
+  } catch {
+    return false
+  }
+}
+
+function kill(pid, signal) {
+  if (isBare) require('bare-os').kill(pid, signal)
+  else process.kill(pid, signal)
+}
 
 async function build(name) {
   const dir = new URL(name + '/', fixtures)
