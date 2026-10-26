@@ -12,8 +12,16 @@ const cmd = command(
   flag('--version|-v', 'Print the current version'),
   flag(
     '--target <name>',
-    'The target runtime (bare-sidecar, or a bare-stow-target-<name> package)'
+    'The target runtime (bare-kit, bare-sidecar, bare-worker, or a bare-stow-target-<name> package)'
   ),
+  flag(
+    '--language <name>',
+    'The language of the harness (javascript, kotlin, python, swift, or a bare-stow-language-<name> package; defaults to javascript)'
+  ),
+  flag(
+    '--language-option <key=value>',
+    'An option for the language, such as module=cjs for javascript'
+  ).multiple(),
   flag(
     '--client <name>',
     'The RPC client to include (bare-rpc, or a bare-stow-rpc-<name> package)'
@@ -26,7 +34,7 @@ const cmd = command(
     '--base <path>',
     'The base path of the bundle (defaults to the closest directory containing every bundled module)'
   ),
-  flag('--out|-o <path>', 'The output path of the harness'),
+  flag('--out|-o <path>', 'The directory to write the harness package to'),
   flag('--builtins <path>', 'A list of builtin modules'),
   flag('--imports <path>', 'A map of global import overrides'),
   flag('--defer <specifier>', 'A module specifier to defer resolution of').multiple(),
@@ -36,6 +44,8 @@ const cmd = command(
     let {
       version,
       target,
+      language,
+      languageOption,
       client,
       server,
       base,
@@ -65,13 +75,26 @@ const cmd = command(
 
     if (base) base = pathToFileURL(path.resolve(base) + '/')
 
+    const languageOptions = {}
+
+    for (const option of languageOption || []) {
+      const i = option.indexOf('=')
+
+      if (i === -1) throw new Error(`--language-option must be <key>=<value>, got '${option}'`)
+
+      languageOptions[option.slice(0, i)] = option.slice(i + 1)
+    }
+
     for await (const _ of stow(pathToFileURL(entry), target, pathToFileURL(out), {
+      language,
+      languageOptions,
       client,
       server,
       base,
       hosts,
       resolveTarget,
       resolveRPC,
+      resolveLanguage,
       builtins,
       imports,
       defer
@@ -82,8 +105,9 @@ const cmd = command(
 )
 
 // Built-in names are resolved by bare-stow itself; any other name is loaded
-// from its `bare-stow-target-<name>` / `bare-stow-rpc-<name>` package, or as a
-// full module specifier, resolved from the working directory.
+// from its `bare-stow-target-<name>`, `bare-stow-rpc-<name>`, or
+// `bare-stow-language-<name>` package, or as a full module specifier, resolved
+// from the working directory.
 
 function resolveTarget(name) {
   return load('bare-stow-target', name)
@@ -91,6 +115,10 @@ function resolveTarget(name) {
 
 function resolveRPC(name) {
   return load('bare-stow-rpc', name)
+}
+
+function resolveLanguage(name) {
+  return load('bare-stow-language', name)
 }
 
 function load(prefix, name) {

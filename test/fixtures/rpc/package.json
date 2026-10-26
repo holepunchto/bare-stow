@@ -1,0 +1,22 @@
+{
+  "name": "bare-stow-fixture-rpc",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "imports": {
+    "path": {
+      "bare": "bare-path",
+      "default": "path"
+    },
+    "url": {
+      "bare": "bare-url",
+      "default": "url"
+    }
+  },
+  "dependencies": {
+    "bare-rpc": "^1.3.2",
+    "bare-stow": "file:../../..",
+    "bare-stow-host": "^0.1.0",
+    "bare-stow-runtime": "^0.1.0"
+  }
+}
