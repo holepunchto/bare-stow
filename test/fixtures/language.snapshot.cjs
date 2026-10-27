@@ -70,6 +70,10 @@ exports['language kotlin writes the dependencies into the manifest - should matc
   id "com.android.library"
 }
 
+if (findProperty("android.builtInKotlin") == "false") {
+  apply plugin: "org.jetbrains.kotlin.android"
+}
+
 android {
   namespace = "com.example.core"
   compileSdk = 36
@@ -113,6 +117,10 @@ let package = Package(
 exports['language kotlin declares linked addons and their classes - should match snapshot - 0'] =
   `plugins {
   id "com.android.library"
+}
+
+if (findProperty("android.builtInKotlin") == "false") {
+  apply plugin: "org.jetbrains.kotlin.android"
 }
 
 android {

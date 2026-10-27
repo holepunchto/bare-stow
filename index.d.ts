@@ -29,6 +29,8 @@ interface Layout {
   artifacts?: URL
   /** The directory the addons of a linked target are linked into, or unset if unsupported. */
   addons?: URL
+  /** The directory the assets of linked bundles are linked into, or unset if unsupported. */
+  resources?: URL
 }
 
 /** The context passed to a language's `manifest()`. */
@@ -41,7 +43,7 @@ interface ManifestContext {
   options: LanguageOptions
   /** The host triples the bundle is packed for. */
   hosts: string[]
-  /** References from the manifest to the bundle and the directory of its offloaded files. */
+  /** References from the manifest to the bundle and the files written next to it. */
   artifacts: string[]
   /** References from the manifest to the resources linked for the addons of a linked target. */
   addons: string[]
@@ -126,8 +128,27 @@ interface TargetContext<O extends LanguageOptions = LanguageOptions> {
    * requested. The module exposes `attach(ipc)`, which binds the client to the IPC handle.
    */
   client: string | null
+  /**
+   * The application resource holding the assets of the bundle, which is then started as
+   * `<resources>.bundle`, or `null` if the assets are next to the bundle.
+   */
+  resources: string | null
   /** The options resolved by the language, with any pinned by the target applied. */
   options: O
+}
+
+/** The context passed to a target language's `link()`. */
+interface TargetLinkContext<O extends LanguageOptions = LanguageOptions> {
+  /** The options resolved by the language, with any pinned by the target applied. */
+  options: O
+}
+
+/** The module and dependencies of a package of linked addons. */
+interface Linked {
+  /** The module's source text, written in place of the harness, or unset for none. */
+  source?: string | null
+  /** The packages that load the addons, declared as for `Generated.dependencies`. */
+  dependencies?: Record<string, unknown>
 }
 
 /** A target's support for one host language. */
@@ -139,7 +160,15 @@ interface TargetLanguage<O extends LanguageOptions = LanguageOptions> {
    * @param context - The target context describing the bundle and RPC client to reference.
    */
   generate(context: TargetContext<O>): Generated
+  /**
+   * Generate the module of a package of addons for `stow.link()`, which requires it.
+   * @param context - The context describing the options to generate for.
+   */
+  link?(context: TargetLinkContext<O>): Linked
 }
+
+/** Options resolved by a target from those given. */
+type TargetOptions = Record<string, unknown>
 
 /** The context passed to the properties of a target that are functions. */
 interface TargetResolveContext<O extends LanguageOptions = LanguageOptions> {
@@ -147,6 +176,8 @@ interface TargetResolveContext<O extends LanguageOptions = LanguageOptions> {
   language: string
   /** The options resolved by the language, with any pinned by the target applied. */
   options: O
+  /** The options resolved by the target. */
+  targetOptions: TargetOptions
 }
 
 /**
@@ -167,8 +198,16 @@ interface Target {
    * that owns its process handles signals.
    */
   isolation: Resolvable<'process' | 'thread'>
-  /** Whether the bundle links against its dependencies rather than inlining them. */
+  /**
+   * Whether the bundle links against its dependencies rather than inlining them. A linked bundle
+   * also leaves its assets to Bare Kit.
+   */
   linked: Resolvable<boolean>
+  /**
+   * Whether addons and assets are linked into the harness `'package'`, the default, or left to the
+   * `'app'`, which links them with `stow.link()`.
+   */
+  linking?: Resolvable<'package' | 'app'>
   /**
    * Whether native addons and/or assets are written out as sibling files instead of being inlined
    * into the bundle.
@@ -187,6 +226,12 @@ interface Target {
   hosts: Resolvable<string[]>
   /** The host languages the target supports, keyed by language name. */
   languages: Record<string, TargetLanguage>
+  /**
+   * Resolve the options of the target from those given. Without it, the target accepts no options.
+   * @param given - The options given through `StowOptions.targetOptions`.
+   * @throws An option is unknown or has an invalid value.
+   */
+  options?(given: TargetOptions): TargetOptions
 }
 
 type RPCName = 'bare-rpc'
@@ -226,6 +271,8 @@ interface StowOptions extends Omit<PackOptions, 'offload' | 'linked' | 'resolve'
   language?: Language | LanguageName
   /** The options given to the language, such as `{ module: 'cjs' }` for `javascript`. */
   languageOptions?: LanguageOptions
+  /** The options given to the target. */
+  targetOptions?: TargetOptions
   /** The RPC library (or its name) to bind in the harness. */
   client?: RPC | RPCName
   /** The RPC library (or its name) to bind in the bundle's entry shim. */
@@ -245,6 +292,12 @@ interface StowOptions extends Omit<PackOptions, 'offload' | 'linked' | 'resolve'
    * @param name - The language name to resolve to a `Language`.
    */
   resolveLanguage?(name: string): Language
+}
+
+/** Options for `stow.link()`, which shape the graphs as for `stow()`. */
+interface LinkOptions extends Omit<StowOptions, 'client' | 'base' | 'resolveRPC'> {
+  /** Resolve an RPC name to an `RPC`, for the server bound in the entry shims. */
+  resolveRPC?(name: string): RPC
 }
 
 /** An artifact written by `stow()`, yielded once its file has been written. */
@@ -278,6 +331,33 @@ declare function stow(
 ): AsyncGenerator<StowArtifact>
 
 declare namespace stow {
+  /**
+   * Link the addons and assets of the graphs rooted at `entries` into a package at `out`, once for
+   * an application. The language lays out the package and the target adds what loads the addons.
+   * @param entries - The entry modules of the graphs, as `file:` URLs or path strings.
+   * @param target - The target the graphs are stowed for, or its name.
+   * @param out - The directory to write the package to, as a `file:` URL or path string.
+   * @param opts - Options; see [`LinkOptions`](#linkoptions).
+   * @returns An async generator that yields the `url` of each linked addon and asset, and then of the
+   * module and manifest of the package.
+   * @throws `entries` is empty, or the `target` or `out` argument is missing.
+   * @throws The target does not link addons, or does not support linking for the language.
+   * @throws The language does not support linked addons or assets.
+   * @throws Two different assets would link to the same path.
+   */
+  function link(
+    entries: URL | string | (URL | string)[],
+    target: Target | TargetName,
+    out: URL | string,
+    opts?: LinkOptions
+  ): AsyncGenerator<StowArtifact>
+
+  /**
+   * The name of the folder that `stow.link()` writes the assets of the application to, which a Swift
+   * application copies into its bundle.
+   */
+  const resources: string
+
   export {
     type Generated,
     type Language,
@@ -292,6 +372,10 @@ declare namespace stow {
     type TargetContext,
     type TargetLanguage,
     type TargetResolveContext,
+    type TargetLinkContext,
+    type TargetOptions,
+    type Linked,
+    type LinkOptions,
     type Resolvable,
     type RPC,
     type RPCName,

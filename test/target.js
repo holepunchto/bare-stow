@@ -172,6 +172,7 @@ test('harness resolves the properties of a target from the language', (t) => {
   t.alike(targets.resolve(target, { language: 'javascript', options: { host: 'linux-x64' } }), {
     ...target,
     isolation: 'process',
+    linking: 'package',
     hosts: ['linux-x64']
   })
 })
@@ -179,13 +180,15 @@ test('harness resolves the properties of a target from the language', (t) => {
 test('harness bare-kit supports hosts by language', (t) => {
   const target = targets('bare-kit')
 
-  t.alike(targets.resolve(target, { language: 'kotlin', options: {} }).hosts, [
+  const targetOptions = targets.options(target)
+
+  t.alike(targets.resolve(target, { language: 'kotlin', options: {}, targetOptions }).hosts, [
     'android-arm64',
     'android-arm',
     'android-x64',
     'android-ia32'
   ])
-  t.alike(targets.resolve(target, { language: 'swift', options: {} }).hosts, [
+  t.alike(targets.resolve(target, { language: 'swift', options: {}, targetOptions }).hosts, [
     'darwin-arm64',
     'darwin-x64',
     'ios-arm64',

@@ -41,7 +41,7 @@ for await (const artifact of stow(entry, 'bare-sidecar', out)) {
 Or from the command line:
 
 ```console
-$ bare-stow --target bare-sidecar --out ./core-harness ./core.js
+$ bare-stow pack --target bare-sidecar --out ./core-harness ./core.js
 ```
 
 This writes a package to `out` with the harness, the bundle, and a manifest declaring the dependencies of the harness. Add the package as a dependency of the host and boot the bundle with `start()`, which resolves once the bundle is ready:
@@ -69,7 +69,22 @@ The bundle imports `bare-stow-runtime`, and the RPC library if a `server` is req
 
 - `bare-sidecar` runs the bundle in a separate process using <https://github.com/holepunchto/bare-sidecar>. `start()` also accepts the options of `bare-sidecar`.
 - `bare-worker` runs the bundle in a thread of a Bare host using <https://github.com/holepunchto/bare-worker>.
-- `bare-kit` runs the bundle in a worklet using <https://github.com/holepunchto/bare-kit>, with the `swift` language on macOS and iOS and the `kotlin` language on Android. `start()` also accepts the options of the worklet and returns it alongside `ipc`. Native addons are linked with <https://github.com/holepunchto/bare-link> rather than packed into the bundle, and declared in the manifest so they're included in the application.
+- `bare-kit` runs the bundle in a worklet using <https://github.com/holepunchto/bare-kit>, with the `swift` language on macOS and iOS and the `kotlin` language on Android. `start()` also accepts the options of the worklet and returns it alongside `ipc`. Native addons are linked with <https://github.com/holepunchto/bare-link> and declared in the manifest, and assets are written next to the bundle. With the `linking` option set to `'app'`, both are left to `link()` instead.
+
+## Linking
+
+A target may leave addons and assets to the application, so that bundles sharing them don't each bring a copy. `link()` then links those of all bundles once, into a package the application depends on:
+
+```js
+const entries = [new URL('file:///app/core.js'), new URL('file:///app/push.js')]
+const out = new URL('file:///app/ios/BareKitAddons/')
+
+for await (const artifact of stow.link(entries, 'bare-kit', out, { language: 'swift' })) {
+  console.log(artifact.url.href)
+}
+```
+
+The language lays out the package and the target adds what loads the addons. For `bare-kit`, that's `bare-kit-swift` or `bare-kit-kotlin`. The assets go in a folder named by `stow.resources`, which a Swift application copies into its bundle. `link()` takes the same options as `stow()`.
 
 ## Languages
 
@@ -83,7 +98,7 @@ The harness is generated in one of these languages, selected with `language` and
 For example, with an RPC client and server:
 
 ```console
-$ bare-stow --target bare-sidecar --language python --client bare-rpc --server bare-rpc --out ./my-core ./core.js
+$ bare-stow pack --target bare-sidecar --language python --client bare-rpc --server bare-rpc --out ./my-core ./core.js
 ```
 
 ```python
@@ -105,17 +120,17 @@ The harness and the bundle multiplex a control channel and the user data over a 
 
 ## Providers
 
-Languages, targets, and RPC libraries are providers that may live outside `bare-stow`. `stow()` accepts a provider object in place of a name, and names are resolved through `resolveLanguage`, `resolveTarget`, and `resolveRPC`. Targets and RPC libraries generate code for each language they list under `languages`, and providers without an entry for the language of the harness are rejected. The server side of an RPC library is always generated as JavaScript, as the bundle runs in Bare. See `index.d.ts` for the interfaces.
+Languages, targets, and RPC libraries are providers that may live outside `bare-stow`. `stow()` and `link()` accept a provider object in place of a name, and names are resolved through `resolveLanguage`, `resolveTarget`, and `resolveRPC`. Targets and RPC libraries generate code for each language they list under `languages`, and providers without an entry for the language of the harness are rejected. Targets may also take options, given as `targetOptions`. The server side of an RPC library is always generated as JavaScript, as the bundle runs in Bare. See `index.d.ts` for the interfaces.
 
 ## CLI
 
-#### `bare-stow [flags] <entry>`
+#### `bare-stow pack [flags] <entry>`
 
 Stow the module graph rooted at `<entry>` into the directory given by `--out`.
 
 ```console
---version|-v
 --target <name>
+--target-option <key=value>
 --language <name>
 --language-option <key=value>
 --client <name>
@@ -129,7 +144,25 @@ Stow the module graph rooted at `<entry>` into the directory given by `--out`.
 --help|-h
 ```
 
-`--target`, `--language`, `--client`, and `--server` take a built-in name, the name of a `bare-stow-target-<name>`, `bare-stow-language-<name>`, or `bare-stow-rpc-<name>` package, or a module specifier, resolved from the working directory. `--language-option`, `--defer`, and `--host` may be passed multiple times. `--host` must name hosts the target supports, and defaults to all of them.
+#### `bare-stow link [flags] <entry...>`
+
+Link the addons and assets of the module graphs rooted at each `<entry>` into the package given by `--out`.
+
+```console
+--target <name>
+--target-option <key=value>
+--language <name>
+--language-option <key=value>
+--server <name>
+--out|-o <path>
+--builtins <path>
+--imports <path>
+--defer <specifier>
+--host <name>
+--help|-h
+```
+
+`--target`, `--language`, `--client`, and `--server` take a built-in name, the name of a `bare-stow-target-<name>`, `bare-stow-language-<name>`, or `bare-stow-rpc-<name>` package, or a module specifier, resolved from the working directory. `--target-option`, `--language-option`, `--defer`, and `--host` may be passed multiple times. `--host` must name hosts the target supports, and defaults to all of them.
 
 `--builtins` and `--imports` are paths to JavaScript or JSON files exporting a list of builtin modules and a map of import overrides, which are forwarded to `bare-pack`.
 

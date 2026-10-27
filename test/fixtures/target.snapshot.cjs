@@ -461,13 +461,11 @@ suspend fun start(
   timeout: Duration? = null,
   grace: Duration = IPC.DEFAULT_GRACE,
 ): Started {
-  val source = context.assets.open("com/example/core/index.bundle").use { it.readBytes() }
-
   val worklet = Worklet(context, options)
 
   val transport = WorkletIPC(worklet)
 
-  worklet.start("/index.bundle", source)
+  worklet.start("com/example/core/index.bundle")
 
   val ipc =
     IPC(

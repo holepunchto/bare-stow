@@ -122,6 +122,27 @@ test('swift harness package links the addons of a bundle on bare-kit', async (t)
   )
 })
 
+test('swift harness package leaves linking to the application', async (t) => {
+  const dir = new URL('linked/', fixtures)
+
+  const written = await build(dir, 'swift-kit-app', {
+    target: 'bare-kit',
+    targetOptions: { linking: 'app' }
+  })
+
+  t.absent(written.some(({ url }) => url.pathname.includes('/Frameworks/')))
+  t.absent(read(dir, 'out/swift-kit-app/Package.swift').includes('.binaryTarget('))
+})
+
+test('swift harness package rejects an unknown linking', async (t) => {
+  const dir = new URL('linked/', fixtures)
+
+  await t.exception(
+    build(dir, 'swift-kit-invalid', { target: 'bare-kit', targetOptions: { linking: 'never' } }),
+    /Option 'linking' must be 'package' or 'app'/
+  )
+})
+
 test('swift harness package links the addons imported by the shim', async (t) => {
   const dir = new URL('echo/', fixtures)
 

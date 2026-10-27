@@ -20,8 +20,7 @@ test('kotlin harness module for a bundle on bare-kit', async (t) => {
   const harness = read(dir, 'out/kotlin-kit/src/main/kotlin/to/holepunch/echo/Harness.kt')
 
   t.ok(harness.startsWith('package to.holepunch.echo\n'))
-  t.ok(harness.includes('context.assets.open("to/holepunch/echo/index.bundle")'))
-  t.ok(harness.includes('worklet.start("/index.bundle", source)'))
+  t.ok(harness.includes('worklet.start("to/holepunch/echo/index.bundle")'))
 
   const manifest = read(dir, 'out/kotlin-kit/build.gradle')
 

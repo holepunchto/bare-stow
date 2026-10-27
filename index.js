@@ -1,24 +1,21 @@
 const path = require('path')
-const { fileURLToPath, pathToFileURL } = require('url')
 const pack = require('bare-pack')
-const link = require('bare-link')
 const id = require('bare-bundle-id')
-const strip = require('bare-type-stripper')
-const { resolve } = require('bare-module-traverse')
 const fs = require('./lib/fs')
+const assets = require('./lib/assets')
 const shim = require('./lib/shim')
-const targets = require('./lib/target')
+const graph = require('./lib/graph')
 const rpcs = require('./lib/rpc')
-const languages = require('./lib/language')
 const { select } = require('./lib/provider')
 
-module.exports = async function* stow(entry, target, out, opts = {}) {
+module.exports = exports = async function* stow(entry, target, out, opts = {}) {
   if (!target) throw new Error("'target' is required")
   if (!out) throw new Error("'out' is required")
 
   let {
-    language = 'javascript',
+    language,
     languageOptions,
+    targetOptions,
     client,
     server,
     base,
@@ -34,24 +31,32 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   if (!out.pathname.endsWith('/')) out.pathname += '/'
 
-  target = targets(target, resolveTarget)
-  language = languages(language, resolveLanguage)
+  const resolved = graph.providers(target, {
+    language,
+    languageOptions,
+    targetOptions,
+    hosts,
+    resolveTarget,
+    resolveLanguage
+  })
 
-  const harness = select('Target', target, language.name)
+  const { harness, options } = resolved
+
+  target = resolved.target
+  language = resolved.language
+  hosts = resolved.hosts
 
   if (client) client = select('RPC library', rpcs(client, resolveRPC), language.name)
   if (server) server = rpcs(server, resolveRPC)
 
-  // A target may pin options that it can't do without, overriding those given.
-  const options = { ...language.options(languageOptions), ...harness.options }
-
-  target = targets.resolve(target, { language: language.name, options })
-
-  hosts = resolveHosts(hosts, target.hosts, target.name)
-
   const layout = language.layout(out, options)
 
   const bundleURL = new URL('index' + target.extension, layout.artifacts ?? layout.harness)
+
+  // Linked bundles leave their assets to Bare Kit, next to the bundle or in the
+  // application.
+  const resources = target.linked && target.linking === 'app' ? assets.app : null
+  const name = resources ?? 'index'
 
   if (client) {
     client = {
@@ -66,6 +71,7 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
       ...harness.generate({
         bundle: language.reference(layout.harness, bundleURL),
         client: client && language.reference(layout.harness, client.url),
+        resources,
         options
       })
     }
@@ -75,7 +81,7 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   const main = shim(entry, target.isolation, server)
 
-  const readModule = wrapReadModule(fs.readModule, main.modules)
+  const readModule = graph.readModule(main.modules)
 
   const offloaded = []
 
@@ -83,18 +89,7 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   if (isOffloadEnabled(target.offload)) writeFile = collectOffloaded(offloaded)
 
-  // The graph is traversed the same way when packing it as when linking its
-  // addons.
-  const traversal = {
-    ...packOpts,
-    resolve: resolve.bare,
-    aliases: {
-      '.ts': '.js',
-      '.mts': '.mjs',
-      '.cts': '.cjs'
-    },
-    hosts
-  }
+  const traversal = graph.traversal(packOpts, hosts)
 
   // The base of the bundle depends on where its modules live, so the graph is
   // packed unbased and unmounted once that is known.
@@ -111,34 +106,35 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
 
   bundle = rerootOffloaded(bundle.unmount(base), base, bundleURL, offloaded)
 
+  let unpacked = []
+
+  if (target.linked) {
+    const result = await assets.unpack(bundle, base, name)
+
+    bundle = result.bundle
+
+    // Assets left to the application are written by `link()` instead.
+    if (resources === null) unpacked = result.assets
+  }
+
   bundle.id = id(bundle).toString('hex')
 
   // The manifest lists the offloaded files only once it's known there are any.
   const artifacts = offloaded.length > 0 ? [bundleURL, offloadURL(bundleURL)] : [bundleURL]
 
+  if (unpacked.length > 0) {
+    artifacts.push(new URL(name + '/', bundleURL), new URL(name + '.assets', bundleURL))
+  }
+
   const addons = []
 
-  if (target.linked) {
+  // Targets that leave linking to the application use `link()` instead.
+  if (target.linked && target.linking === 'package') {
     if (!layout.addons) {
       throw new Error(`Language '${language.name}' does not support linked addons`)
     }
 
-    // The addons are those of the bundled graph, so linking starts from the
-    // shim and reads the graph the way packing does. The layout must not
-    // depend on the hosts, as Swift packages only accept XCFrameworks, and the
-    // resources linked outside of the directory are intermediate.
-    for await (const resource of link(fileURLToPath(main.url), {
-      ...traversal,
-      out: fileURLToPath(layout.addons),
-      alwaysMultiHost: true,
-      readModule,
-      listPrefix: fs.listPrefix,
-      resolveModule: fs.resolveModule
-    })) {
-      const url = pathToFileURL(resource)
-
-      if (!url.href.startsWith(layout.addons.href)) continue
-
+    for await (const url of graph.link([main.url], layout.addons, traversal, readModule)) {
       addons.push(url)
       yield { url }
     }
@@ -171,6 +167,10 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
   await fs.writeFile(bundleURL, encodeBundle(bundle, target.format, target.encoding ?? 'utf8'))
   yield { url: bundleURL }
 
+  if (unpacked.length > 0) {
+    for await (const url of assets.write(new URL('./', bundleURL), name, unpacked)) yield { url }
+  }
+
   // Offloaded files are collected in the order their reads complete, so they
   // are sorted to keep the output stable.
   offloaded.sort((a, b) => (a.url.href < b.url.href ? -1 : a.url.href > b.url.href ? 1 : 0))
@@ -181,20 +181,8 @@ module.exports = async function* stow(entry, target, out, opts = {}) {
   }
 }
 
-function resolveHosts(hosts, supported, name) {
-  if (!hosts) return supported
-
-  for (const host of hosts) {
-    if (!supported.includes(host)) {
-      throw new Error(`Host '${host}' is not supported by target '${name}'`)
-    }
-  }
-
-  return hosts
-}
-
-function resolveBase(base, graph) {
-  const modules = [...graph.keys()].map((href) => new URL(href))
+function resolveBase(base, bundle) {
+  const modules = [...bundle.keys()].map((href) => new URL(href))
 
   if (base) {
     base = new URL(base)
@@ -236,20 +224,6 @@ function isOffloadEnabled(offload) {
   if (offload && (offload.addons || offload.assets)) return true
 
   return false
-}
-
-function wrapReadModule(readModule, modules) {
-  return async function (url) {
-    if (modules.has(url.href)) return modules.get(url.href)
-
-    const source = await readModule(url)
-
-    if (source === null) return null
-
-    if (/\.(c|m)?ts$/.test(url.pathname)) return strip(source)
-
-    return source
-  }
 }
 
 function collectOffloaded(sink) {
@@ -355,3 +329,7 @@ function encodeBundle(bundle, format, encoding) {
       throw new Error(`Unknown format '${format}'`)
   }
 }
+
+exports.link = require('./lib/link')
+
+exports.resources = assets.app

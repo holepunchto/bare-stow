@@ -122,7 +122,8 @@ test('language swift lays the harness out as a package', (t) => {
     harness: new URL('file:///app/out/swift-sidecar/Sources/SwiftSidecar/Harness.swift'),
     name: 'SwiftSidecar',
     manifest: new URL('file:///app/out/swift-sidecar/Package.swift'),
-    addons: new URL('file:///app/out/swift-sidecar/Frameworks/')
+    addons: new URL('file:///app/out/swift-sidecar/Frameworks/'),
+    resources: new URL('file:///app/out/swift-sidecar/')
   })
 })
 
@@ -195,7 +196,8 @@ test('language kotlin lays the harness out as a module', (t) => {
     artifacts: new URL('file:///app/core/src/main/assets/com/example/core/'),
     name: 'com.example.core',
     manifest: new URL('file:///app/core/build.gradle'),
-    addons: new URL('file:///app/core/src/main/addons/')
+    addons: new URL('file:///app/core/src/main/addons/'),
+    resources: new URL('file:///app/core/src/main/assets/')
   })
 })
 
