@@ -74,16 +74,13 @@ test('link declares the java classes of addons for kotlin', async (t) => {
     })
   )
 
-  const jar = new URL(
-    'out/link-kotlin/src/main/addons/bare-bluetooth-android.bare_bluetooth_classes.jar',
-    dir
-  )
+  const jar = new URL('out/link-kotlin/src/main/addons/bare-bluetooth-android.classes.jar', dir)
 
   t.is(written.filter(({ url }) => url.href === jar.href).length, 1)
 
   t.ok(
     read(dir, 'out/link-kotlin/build.gradle').includes(
-      'api files("src/main/addons/bare-bluetooth-android.bare_bluetooth_classes.jar")'
+      'api files("src/main/addons/bare-bluetooth-android.classes.jar")'
     )
   )
 })

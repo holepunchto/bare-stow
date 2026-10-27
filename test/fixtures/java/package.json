@@ -14,7 +14,7 @@
     }
   },
   "dependencies": {
-    "bare-bluetooth-android": "^0.11.6",
+    "bare-bluetooth-android": "^0.11.7",
     "bare-stow": "file:../../..",
     "bare-stow-host": "^0.1.0",
     "bare-stow-runtime": "^0.1.0"
