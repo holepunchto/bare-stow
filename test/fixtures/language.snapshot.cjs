@@ -30,8 +30,8 @@ name = "core"
 version = "0.0.0"
 requires-python = ">=3.10"
 dependencies = [
-  "bare-sidecar>=0.1.0",
-  "bare-rpc>=0.1.0",
+  "bare-sidecar~=0.1.0",
+  "bare-rpc~=0.1.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -51,7 +51,7 @@ let package = Package(
     .library(name: "Core", targets: ["Core"])
   ],
   dependencies: [
-    .package(url: "https://github.com/holepunchto/bare-sidecar-swift", from: "0.1.0"),
+    .package(url: "https://github.com/holepunchto/bare-sidecar-swift", .upToNextMinor(from: "0.1.0")),
   ],
   targets: [
     .target(

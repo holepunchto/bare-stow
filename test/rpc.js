@@ -20,7 +20,7 @@ test('rpc bare-rpc client as python', (t) => {
   })
 
   t.snapshot(source, 'source')
-  t.alike(dependencies, { 'bare-rpc': '>=0.1.0', 'bare-stow-host': '>=0.1.0' })
+  t.alike(dependencies, { 'bare-rpc': '~=0.1.0', 'bare-stow-host': '~=0.1.0' })
 })
 
 test('rpc bare-rpc client as kotlin', (t) => {

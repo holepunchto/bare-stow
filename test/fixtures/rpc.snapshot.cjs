@@ -48,40 +48,23 @@ exports['rpc bare-rpc server - types - 0'] =
   `export function attach(ipc: import('bare-stow-host').IPC): import('bare-rpc')
 `
 
-exports['rpc bare-rpc client as python - source - 0'] = `import asyncio
-from contextlib import suppress
-
-from bare_rpc import RPC, CommandRouter
-from bare_stow_host import IPC, WorkerError
+exports['rpc bare-rpc client as python - source - 0'] = `from bare_rpc import RPC, CommandRouter
+from bare_stow_host import IPC
 
 Client = RPC
-
-_pumping = set()
 
 
 def attach(ipc: IPC) -> Client:
     router = CommandRouter()
     rpc = RPC(
-        ipc.write,
+        ipc,
         on_request=router.dispatch_request,
         on_event=router.dispatch_event,
     )
 
     rpc.respond = router.on_request
 
-    pumping = asyncio.ensure_future(_pump(ipc, rpc))
-    _pumping.add(pumping)
-    pumping.add_done_callback(_pumping.discard)
-
     return rpc
-
-
-async def _pump(ipc, rpc):
-    with suppress(WorkerError):
-        async for data in ipc:
-            await rpc.receive(data)
-
-    rpc.close()
 `
 
 exports['rpc bare-rpc client as kotlin - source - 0'] = `package com.example.core

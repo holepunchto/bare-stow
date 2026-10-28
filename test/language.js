@@ -111,7 +111,7 @@ test('language python writes the dependencies and bundle into the manifest', (t)
   t.snapshot(
     python.manifest({
       name: 'core',
-      dependencies: { 'bare-sidecar': '>=0.1.0', 'bare-rpc': '>=0.1.0' },
+      dependencies: { 'bare-sidecar': '~=0.1.0', 'bare-rpc': '~=0.1.0' },
       artifacts: ['core/index.bundle', 'core/index.bundle.d']
     })
   )
