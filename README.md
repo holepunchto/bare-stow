@@ -1,8 +1,6 @@
 # bare-stow
 
-Module bundling and harness generation for Bare. Built on top of `bare-pack` (<https://github.com/holepunchto/bare-pack>), `bare-stow` produces a bundle for a target runtime together with a small harness that boots it from the host environment.
-
-A [CLI](#cli) is also included and provides support for stowing a module graph from the command line.
+Module bundling and harness generation for Bare. `bare-stow` packs a module graph into a bundle with <https://github.com/holepunchto/bare-pack> and generates a harness package that boots the bundle from a host application.
 
 ```
 npm i [-g] bare-stow
@@ -10,7 +8,7 @@ npm i [-g] bare-stow
 
 ## Usage
 
-Given an entry module `core.js` that exports a `start` function receiving the IPC stream and an optional `ready` callback. The function may optionally return (or resolve to) a function that runs before the bundle exits:
+The entry module exports a `start()` function that receives the IPC stream and an optional `ready` callback. It may return a function to run before the bundle exits:
 
 ```js
 module.exports = async function start(ipc, ready) {
@@ -18,8 +16,7 @@ module.exports = async function start(ipc, ready) {
     // Handle messages from the host.
   })
 
-  // Optionally call `ready()` to signal readiness early. Otherwise it is
-  // signaled automatically when `start()` resolves.
+  // Signal readiness early. Otherwise, it's signaled when `start()` resolves.
   ready()
 
   return async function stop() {
@@ -28,31 +25,29 @@ module.exports = async function start(ipc, ready) {
 }
 ```
 
-The `ipc` argument is a duplex byte stream. Anything written to it is delivered to the host, and `'data'` events fire when the host writes back.
-
-Stow it for the `bare-sidecar` target:
+Stow it for a target:
 
 ```js
 const stow = require('bare-stow')
 
-const entry = new URL('file:///app/core.js')
-const out = new URL('file:///app/out/index.js')
+const entry = 'file:///app/core.js'
+const out = 'file:///app/core-harness/'
 
 for await (const artifact of stow(entry, 'bare-sidecar', out)) {
   console.log(artifact.url.href)
 }
 ```
 
-Or equivalently from the command line:
+Or from the command line:
 
 ```console
-$ bare-stow --target bare-sidecar --out ./out/index.js ./core.js
+$ bare-stow pack --target bare-sidecar --out ./core-harness ./core.js
 ```
 
-This writes the harness to `out` and the bundle alongside it. The harness can then be required from the host and booted with `start()`. The harness awaits the worker's `ready` signal before resolving, so by the time `start()` returns the bundle is up:
+This writes a package to `out` with the harness, the bundle, and a manifest declaring the dependencies of the harness. Add the package as a dependency of the host and boot the bundle with `start()`, which resolves once the bundle is ready:
 
 ```js
-const harness = require('/app/out/index.js')
+import * as harness from 'core-harness'
 
 const { ipc } = await harness.start()
 
@@ -66,117 +61,85 @@ ipc.on('exit', (code) => {
 ipc.destroy()
 ```
 
-The harness imports its runtime by name, `bare-stow/host` along with `bare-sidecar` or `bare-worker` depending on the target, so the package that the harness is written into must depend on both. Relying on another package to bring them in only works while a package manager happens to hoist them, and not at all under an isolated layout such as that of pnpm. `stow()` resolves every import of the harness from `out` before writing anything and throws if one of them can't be found.
+The bundle imports `bare-stow-runtime`, and the RPC library if a `server` is requested, so the package containing the entry must depend on them.
 
-For the `bare-sidecar` target, `start()` accepts the options of `bare-sidecar`. The sidecar inherits the standard streams of the host unless `stdio` says otherwise.
+`start()` accepts `timeout`, how long to wait in milliseconds for the bundle to signal ready, and `grace`, how long a terminating bundle gets to run `stop()` and exit before it's killed. `timeout` defaults to waiting indefinitely and `grace` to 5 seconds. On Windows, a sidecar is killed along with its host, so `stop()` only runs when the host terminates it.
 
-`start()` also accepts `timeout`, the number of milliseconds to wait for the worker to signal ready before rejecting and terminating it, and `grace`, the number of milliseconds a terminating worker gets to run `stop()` and exit before it is killed. `timeout` defaults to waiting indefinitely and `grace` to 5 seconds. The worker holds itself to the same `grace` whenever it shuts down, including when it receives `SIGTERM` or the host goes away without terminating it. On Windows, a sidecar is killed along with its host instead, so `stop()` only runs when the host terminates it.
+## Targets
+
+- `bare-sidecar` runs the bundle in a separate process using <https://github.com/holepunchto/bare-sidecar>. `start()` also accepts the options of `bare-sidecar`.
+- `bare-worker` runs the bundle in a thread of a Bare host using <https://github.com/holepunchto/bare-worker>.
+- `bare-kit` runs the bundle in a worklet using <https://github.com/holepunchto/bare-kit>, with the `swift` language on macOS and iOS and the `kotlin` language on Android. `start()` also accepts the options of the worklet and returns it alongside `ipc`. Native addons are linked with <https://github.com/holepunchto/bare-link> and declared in the manifest, and assets are written next to the bundle. With the `linking` option set to `'app'`, both are left to `link()` instead.
+
+## Linking
+
+A target may leave addons and assets to the application, so that bundles sharing them don't each bring a copy. `link()` then links those of all bundles once, into a package the application depends on:
+
+```js
+const entries = [new URL('file:///app/core.js'), new URL('file:///app/push.js')]
+const out = new URL('file:///app/ios/BareKitAddons/')
+
+for await (const artifact of stow.link(entries, 'bare-kit', out, { language: 'swift' })) {
+  console.log(artifact.url.href)
+}
+```
+
+The language lays out the package and the target adds what loads the addons. For `bare-kit`, that's `bare-kit-swift` or `bare-kit-kotlin`. The assets go in a folder named by `stow.resources`, which a Swift application copies into its bundle. `link()` takes the same options as `stow()`.
+
+## Languages
+
+The harness is generated in one of these languages, selected with `language` and configured with `languageOptions`:
+
+- `javascript` writes an npm package. The `module` option is either `'esm'`, the default, or `'cjs'`.
+- `kotlin` writes an Android library module. The `package` option names the package of the generated code and is required. The dependencies are published to JitPack (<https://jitpack.io>), so add it to the repositories of the application.
+- `python` writes a Python package.
+- `swift` writes a Swift package.
+
+For example, with an RPC client and server:
+
+```console
+$ bare-stow pack --target bare-sidecar --language python --client bare-rpc --server bare-rpc --out ./my-core ./core.js
+```
+
+```python
+import my_core
+
+
+async def on_greet(req):
+    await req.reply(b"hello")
+
+
+ipc, rpc = await my_core.start(handlers=lambda router: router.on_request(2, on_greet))
+
+await rpc.request(1, b"ping")
+await ipc.terminate()
+```
+
+With an RPC client, `start()` takes the handlers for the requests and events of the bundle, so that they are registered before the bundle can send any.
 
 ## Protocol
 
-The harness multiplexes a control channel and a user data channel over the underlying binary duplex stream. The `ipc` returned from `start()` is itself a duplex stream carrying the user data; control frames ride alongside it on the same handle. RPC libraries (such as `bare-rpc`) bind to `ipc` just like a raw stream.
+The harness and the bundle multiplex a control channel and the user data over a single duplex stream. The `ipc` returned from `start()` is a duplex stream of the user data, so RPC libraries such as `bare-rpc` bind to it like any other stream. Embedders bringing their own transport can use the protocol directly:
 
-Control frames signal lifecycle events:
+- <https://github.com/holepunchto/bare-stow-protocol> implements the framing.
+- <https://github.com/holepunchto/bare-stow-host> implements the host side and documents `ipc`.
+- <https://github.com/holepunchto/bare-stow-runtime> implements the bundle side.
 
-| Direction      | Type        | Payload              |
-| :------------- | :---------- | :------------------- |
-| Worker -> Host | `ready`     | -                    |
-| Worker -> Host | `exit`      | `{ code }`           |
-| Worker -> Host | `error`     | `{ message, stack }` |
-| Host -> Worker | `terminate` | -                    |
+## Providers
 
-An incoming `error` frame destroys the local `ipc` with the carried error, surfacing it as a normal stream `error` event. Other control frames emit a regular event named after the type.
-
-The `ipc` handle exposes the lifecycle as events and methods on the same duplex:
-
-- `ipc.ready`: A promise that resolves once the worker has signaled ready. Rejects if the worker errors before ready.
-- `ipc.on('exit', code)`: Emitted when the worker signals exit. `code` carries the exit code.
-- `ipc.on('error', err)`: Emitted when the worker reports a fault, when it exits without saying why, such as through `Bare.exit()`, a signal, or a crash, or when the underlying transport errors. Either way the `ipc` is destroyed. For a worker that exited without saying why, `err.exitCode` and `err.signalCode` carry the reason.
-- `ipc.on('close')`: Emitted when the underlying transport closes.
-- `ipc.destroy()`: Standard stream destroy. Sends a `terminate` control frame to the worker and waits for the underlying transport to close.
-- `ipc.terminate()`: Like `destroy()` but resolves with the worker's exit code.
-
-The framing layer is also exported directly for embedders that bring their own transport:
-
-```js
-const protocol = require('bare-stow/protocol')
-
-const ipc = protocol.attach(stream) // Any duplex byte stream
-ipc.write(Buffer.from('payload')) // User data
-ipc.send('ready') // Control frame
-ipc.on('exit', () => {
-  /* ... */
-})
-```
-
-The host helper layers the lifecycle promise and `terminate` method on top of the protocol:
-
-```js
-const { wrap } = require('bare-stow/host')
-
-const ipc = wrap(stream) // Any duplex byte stream
-await ipc.ready
-```
-
-## Targets and RPC providers
-
-The harness and RPC code generators are decoupled from the bundler: `target`, `client`, and `server` each accept a provider object directly, so generators can live outside `bare-stow`. Passing a name instead resolves it through `resolveTarget` / `resolveRPC`, which default to the built-in registries.
-
-Both kinds of provider return an ordered array of artifacts. An artifact is `{ extension?, source }`:
-
-```js
-artifacts = [
-  { source }, // The primary output.
-  { extension, source } // A companion, named after the primary plus this extension.
-]
-```
-
-A target provider describes the runtime profile it owns and generates the harness that boots the bundle from the host:
-
-```js
-target = {
-  name, // The target's name, used in diagnostics.
-  linked, // Whether assets and addons are linked into the bundle.
-  offload, // Whether (and which) assets and addons are offloaded to a `<bundle>.d` directory next to the bundle.
-  format, // The bundle encoding: 'bundle', 'bundle.cjs', 'bundle.mjs', or 'bundle.json'.
-  encoding, // The string encoding for encoded formats, or null for raw bytes.
-  extension, // The bundle file extension, e.g. '.bundle'.
-  module, // Optional. Pins the harness module system to 'esm' or 'cjs'.
-  hosts, // The host triples the target supports.
-  generate({ bundleSpecifier, ipc, rpc, module, client }) {
-    // Return an array of harness artifacts.
-  }
-}
-```
-
-For a target, each artifact is a file. The first has no `extension` and is written to `out`; each remaining artifact is written next to `out` with its own `extension` substituted for the harness extension (e.g. `{ extension: '.d.ts' }` becomes `index.d.ts`). The built-in targets emit two artifacts: The harness and its TypeScript declaration.
-
-`generate()` receives `bundleSpecifier`, the relative specifier from the harness to the bundle artifact; `ipc`, the identifier the harness should bind the IPC stream to; `rpc`, the identifier the RPC client setup binds its instance to; `module`, the harness module system (`'esm'` or `'cjs'`) so the harness can emit the matching module and import forms; and `client`, the resolved RPC client (or `null` when no client is requested). When present, `client` is `{ source, type }`: `source` is the runtime setup to splice into the harness (referencing `ipc` and binding `rpc`), and `type` is the TypeScript type of the bound instance to splice into the declaration. The target owns `linked`, `offload`, `format`, `encoding`, and `extension`; they are not overridable through `opts`.
-
-The harness `module` system is derived from the output path: `out` ending in `.mjs` is ESM and `.cjs` is CommonJS, while an ambiguous `.js` (or other) extension follows the `type` of the closest enclosing `package.json` (`"module"` is ESM, otherwise CommonJS). A target may set its own `module` to pin the harness to one system regardless of the output path.
-
-An RPC provider generates the wiring that binds an RPC instance to the IPC stream, used on both the client (harness) and server (shim) side:
-
-```js
-rpc = {
-  name, // The library's name, used in diagnostics.
-  generate({ ipc, rpc, module, role }) {
-    // Return an array of RPC artifacts.
-  }
-}
-```
-
-For an RPC provider, each artifact is a fragment contributed to the harness file with the matching extension. The artifact with no `extension` is the runtime setup (reading `ipc`, binding `rpc`); the `{ extension: '.d.ts' }` artifact is the TypeScript type of the bound instance. `generate()` receives `ipc`, the identifier of the IPC stream in scope; `rpc`, the identifier to bind the RPC instance to; `module`, the surrounding module system (`'esm'` or `'cjs'`) so the runtime fragment can emit the matching import form; and `role`, either `'client'` or `'server'`. The bundler owns the `ipc` and `rpc` binding names and threads them to both the target and the RPC provider so neither has to assume them. It renders the client in the harness `module` and the server as `'esm'` (the shim is always an ES module), splicing the runtime fragment and, for the client, the type fragment into the target's artifacts. The shim is not a typed, host-facing module, so the server's type fragment is unused.
+Languages, targets, and RPC libraries are providers that may live outside `bare-stow`. `stow()` and `link()` accept a provider object in place of a name, and names are resolved through `resolveLanguage`, `resolveTarget`, and `resolveRPC`. Targets and RPC libraries generate code for each language they list under `languages`, and providers without an entry for the language of the harness are rejected. Targets may also take options, given as `targetOptions`. The server side of an RPC library is always generated as JavaScript, as the bundle runs in Bare. See `index.d.ts` for the interfaces.
 
 ## CLI
 
-#### `bare-stow [flags] <entry>`
+#### `bare-stow pack [flags] <entry>`
 
-Stow the module graph rooted at `<entry>`, writing the harness and bundle to the path given by `--out`.
+Stow the module graph rooted at `<entry>` into the directory given by `--out`.
 
 ```console
---version|-v
 --target <name>
+--target-option <key=value>
+--language <name>
+--language-option <key=value>
 --client <name>
 --server <name>
 --base <path>
@@ -188,25 +151,27 @@ Stow the module graph rooted at `<entry>`, writing the harness and bundle to the
 --help|-h
 ```
 
-##### `--target <name>`
+#### `bare-stow link [flags] <entry...>`
 
-The target runtime. Required. The built-in `bare-sidecar` and `bare-worker` are resolved directly; any other `<name>` is loaded from its `bare-stow-target-<name>` package, or from `<name>` itself as a full module specifier, resolved from the working directory.
+Link the addons and assets of the module graphs rooted at each `<entry>` into the package given by `--out`.
 
-##### `--client <name>` and `--server <name>`
+```console
+--target <name>
+--target-option <key=value>
+--language <name>
+--language-option <key=value>
+--server <name>
+--out|-o <path>
+--builtins <path>
+--imports <path>
+--defer <specifier>
+--host <name>
+--help|-h
+```
 
-The RPC library to wire into the harness (`--client`) or the bundle entry shim (`--server`). The built-in `bare-rpc` is resolved directly; any other `<name>` is loaded from its `bare-stow-rpc-<name>` package, or from `<name>` itself as a full module specifier, resolved from the working directory.
+`--target`, `--language`, `--client`, and `--server` take a built-in name, the name of a `bare-stow-target-<name>`, `bare-stow-language-<name>`, or `bare-stow-rpc-<name>` package, or a module specifier, resolved from the working directory. `--target-option`, `--language-option`, `--defer`, and `--host` may be passed multiple times. `--host` must name hosts the target supports, and defaults to all of them.
 
-##### `--builtins <path>` and `--imports <path>`
-
-Paths to JavaScript or JSON files exporting a list of builtin module names and a map of global import overrides respectively. Forwarded to `bare-pack`.
-
-##### `--defer <specifier>`
-
-A module specifier whose resolution should be deferred. May be passed multiple times.
-
-##### `--host <name>`
-
-A host triple to build for. Must be a subset of the host triples supported by the target. May be passed multiple times. Defaults to all host triples supported by the target.
+`--builtins` and `--imports` are paths to JavaScript or JSON files exporting a list of builtin modules and a map of import overrides, which are forwarded to `bare-pack`.
 
 ## License
 

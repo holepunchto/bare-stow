@@ -1,5 +1,5 @@
 const path = require('path')
-const { pathToFileURL, fileURLToPath } = require('url')
+const { pathToFileURL } = require('url')
 const test = require('brittle')
 const { isBare } = require('which-runtime')
 const stow = require('..')
@@ -82,14 +82,27 @@ test('worker harness closes after the worker exits', opts, async (t) => {
   t.is(await ipc.terminate(), 0)
 })
 
-async function bundle(name) {
+test('worker harness round-trips rpc requests', opts, async (t) => {
+  const harness = await bundle('rpc', { client: 'bare-rpc', server: 'bare-rpc' })
+  const { ipc, rpc } = await harness.start()
+
+  const req = rpc.request(1)
+
+  req.send(Buffer.from('ping'))
+
+  t.alike(await req.reply(), Buffer.from('ping'))
+
+  await ipc.terminate()
+})
+
+async function bundle(name, rpc) {
   const dir = new URL(name + '/', fixtures)
   const entry = new URL('core.js', dir)
-  const out = new URL('out/worker.js', dir)
+  const out = new URL('out/javascript-worker/', dir)
 
-  for await (const _ of stow(entry, 'bare-worker', out)) {
+  for await (const _ of stow(entry, 'bare-worker', out, rpc)) {
     //
   }
 
-  return require(fileURLToPath(out))
+  return import(new URL('index.js', out).href)
 }

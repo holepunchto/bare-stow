@@ -7,18 +7,6 @@
     ".": {
       "types": "./index.d.ts",
       "default": "./index.js"
-    },
-    "./protocol": {
-      "types": "./lib/protocol.d.ts",
-      "default": "./lib/protocol.js"
-    },
-    "./host": {
-      "types": "./lib/host.d.ts",
-      "default": "./lib/host.js"
-    },
-    "./runtime": {
-      "types": "./lib/runtime.d.ts",
-      "default": "./lib/runtime.js"
     }
   },
   "imports": {
@@ -66,23 +54,23 @@
   },
   "homepage": "https://github.com/holepunchto/bare-stow#readme",
   "dependencies": {
-    "b4a": "^1.6.0",
     "bare-bundle": "^1.8.3",
     "bare-bundle-id": "^1.0.0",
     "bare-fs": "^4.2.1",
-    "bare-module-lexer": "^1.6.0",
+    "bare-link": "^4.1.0",
     "bare-module-traverse": "^2.2.0",
     "bare-pack": "^3.0.0",
     "bare-path": "^3.0.0",
-    "bare-signals": "^5.0.0",
-    "bare-stream": "^2.13.1",
     "bare-type-stripper": "^0.1.2",
+    "bare-unpack": "^1.1.3",
     "paparam": "^1.5.0"
   },
   "devDependencies": {
     "bare-os": "^3.0.0",
     "bare-rpc": "^1.3.2",
     "bare-sidecar": "^0.5.11",
+    "bare-stow-host": "^0.1.0",
+    "bare-stow-runtime": "^0.1.0",
     "bare-worker": "^4.3.0",
     "brittle": "^4.0.2",
     "lunte": "^1.7.0",
@@ -91,13 +79,9 @@
     "which-runtime": "^1.4.0"
   },
   "peerDependencies": {
-    "bare-buffer": "^3.6.0",
     "bare-url": "^2.4.0"
   },
   "peerDependenciesMeta": {
-    "bare-buffer": {
-      "optional": true
-    },
     "bare-url": {
       "optional": true
     }

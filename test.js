@@ -5,115 +5,159 @@ const test = require('brittle')
 const Bundle = require('bare-bundle')
 const stow = require('.')
 const sidecar = require('./lib/target/bare-sidecar')
+const javascript = require('./lib/language/javascript')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'test/fixtures') + '/')
 
+require('./test/language')
 require('./test/target')
 require('./test/rpc')
-require('./test/host')
-require('./test/protocol')
 require('./test/shim')
+require('./test/kotlin')
+require('./test/assets')
+require('./test/link')
+require('./test/python')
+require('./test/swift')
 require('./test/sidecar')
 require('./test/worker')
 
-test('stow bare-sidecar yields harness + bundle', async (t) => {
+test('stow writes the harness package and bundle', async (t) => {
   const dir = new URL('basic/', fixtures)
-  const entry = new URL('core.js', dir)
-  const out = new URL('out/index.js', dir)
 
-  const artifacts = []
-
-  for await (const artifact of stow(entry, 'bare-sidecar', out)) {
-    artifacts.push(artifact)
-  }
-
-  t.alike(artifacts, [
-    { url: out },
-    { url: new URL('out/index.d.ts', dir) },
-    { url: new URL('out/index.bundle', dir) },
+  t.alike(await artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir)), [
+    { url: new URL('out/javascript-sidecar/index.js', dir) },
+    { url: new URL('out/javascript-sidecar/index.d.ts', dir) },
+    { url: new URL('out/javascript-sidecar/package.json', dir) },
+    { url: new URL('out/javascript-sidecar/index.bundle', dir) },
     ...prebuilds(dir)
   ])
 })
 
 test('stow strips types from a TypeScript entry', async (t) => {
   const dir = new URL('typescript/', fixtures)
-  const entry = new URL('core.ts', dir)
-  const out = new URL('out/index.js', dir)
 
-  const artifacts = []
-
-  for await (const artifact of stow(entry, 'bare-sidecar', out)) {
-    artifacts.push(artifact)
-  }
-
-  t.alike(artifacts, [
-    { url: out },
-    { url: new URL('out/index.d.ts', dir) },
-    { url: new URL('out/index.bundle', dir) },
+  t.alike(await artifacts(new URL('core.ts', dir), new URL('out/javascript-sidecar', dir)), [
+    { url: new URL('out/javascript-sidecar/index.js', dir) },
+    { url: new URL('out/javascript-sidecar/index.d.ts', dir) },
+    { url: new URL('out/javascript-sidecar/package.json', dir) },
+    { url: new URL('out/javascript-sidecar/index.bundle', dir) },
     ...prebuilds(dir)
   ])
 })
 
-test('stow generates an esm harness for a .mjs output', async (t) => {
+test('stow generates an esm harness package by default', async (t) => {
   const dir = new URL('basic/', fixtures)
-  const entry = new URL('core.js', dir)
-  const out = new URL('out/index.mjs', dir)
 
-  for await (const _ of stow(entry, 'bare-sidecar', out)) {
-    //
-  }
+  await artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir))
 
-  const source = fs.readFileSync(fileURLToPath(out), 'utf8')
-
-  t.ok(source.includes('export async function start'))
-  t.ok(source.includes("import Sidecar from 'bare-sidecar'"))
+  t.ok(read(dir, 'out/javascript-sidecar/index.js').includes('export async function start'))
+  t.ok(read(dir, 'out/javascript-sidecar/index.js').includes("import Sidecar from 'bare-sidecar'"))
+  t.is(JSON.parse(read(dir, 'out/javascript-sidecar/package.json')).type, 'module')
 })
 
-test('stow generates a cjs harness for a .cjs output', async (t) => {
+test('stow generates a cjs harness package when asked to', async (t) => {
   const dir = new URL('basic/', fixtures)
-  const entry = new URL('core.js', dir)
-  const out = new URL('out/index.cjs', dir)
 
-  for await (const _ of stow(entry, 'bare-sidecar', out)) {
-    //
-  }
+  await artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), {
+    languageOptions: { module: 'cjs' }
+  })
 
-  const source = fs.readFileSync(fileURLToPath(out), 'utf8')
-
-  t.ok(source.includes('module.exports'))
-  t.ok(source.includes("const Sidecar = require('bare-sidecar')"))
+  t.ok(read(dir, 'out/javascript-sidecar/index.js').includes('module.exports'))
+  t.ok(
+    read(dir, 'out/javascript-sidecar/index.js').includes("const Sidecar = require('bare-sidecar')")
+  )
+  t.is(JSON.parse(read(dir, 'out/javascript-sidecar/package.json')).type, 'commonjs')
 })
 
-test('stow generates an esm harness for a .js output under "type": "module"', async (t) => {
-  const dir = new URL('esm/', fixtures)
-  const entry = new URL('core.js', dir)
-  const out = new URL('out/index.js', dir)
+test('stow lets a target pin options over those given', async (t) => {
+  const dir = new URL('basic/', fixtures)
 
-  // The fixture declares `"type": "module"`, so a `.js` output resolves to ESM.
-  for await (const _ of stow(entry, 'bare-sidecar', out)) {
-    //
+  const target = {
+    ...sidecar,
+    languages: { javascript: { ...sidecar.languages.javascript, options: { module: 'cjs' } } }
   }
 
-  const source = fs.readFileSync(fileURLToPath(out), 'utf8')
+  await artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), {
+    target,
+    languageOptions: { module: 'esm' }
+  })
 
-  t.ok(source.includes('export async function start'))
+  t.ok(read(dir, 'out/javascript-sidecar/index.js').includes('module.exports'))
 })
 
-test('stow lets a target override the path-derived module system', async (t) => {
+test('stow throws for unknown or invalid language options', async (t) => {
   const dir = new URL('basic/', fixtures)
-  const entry = new URL('core.js', dir)
-  const out = new URL('out/index.mjs', dir)
 
-  // Pin the target to CommonJS even though the output path implies ESM.
-  const target = { ...sidecar, module: 'cjs' }
+  await t.exception(
+    artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), {
+      languageOptions: { flavor: 'vanilla' }
+    }),
+    /Unknown option 'flavor' for language 'javascript'/
+  )
 
-  for await (const _ of stow(entry, target, out)) {
-    //
-  }
+  await t.exception(
+    artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), {
+      languageOptions: { module: 'amd' }
+    }),
+    /Option 'module' must be one of esm, cjs, got 'amd'/
+  )
+})
 
-  const source = fs.readFileSync(fileURLToPath(out), 'utf8')
+test('stow throws for an output that is not a valid package name', async (t) => {
+  const dir = new URL('basic/', fixtures)
 
-  t.ok(source.includes('module.exports'))
+  await t.exception(
+    artifacts(new URL('core.js', dir), new URL('out/Javascript-Sidecar', dir)),
+    /'Javascript-Sidecar' is not a valid package name/
+  )
+})
+
+test('stow declares the dependencies of the generated modules', async (t) => {
+  const dir = new URL('basic/', fixtures)
+
+  await artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), {
+    client: 'bare-rpc',
+    server: 'bare-rpc'
+  })
+
+  t.alike(JSON.parse(read(dir, 'out/javascript-sidecar/package.json')), {
+    name: 'javascript-sidecar',
+    private: true,
+    type: 'module',
+    exports: {
+      '.': {
+        types: './index.d.ts',
+        default: './index.js'
+      }
+    },
+    dependencies: {
+      'bare-sidecar': '^0.5.12',
+      'bare-stow-host': '^0.1.0',
+      'bare-rpc': '^1.3.9'
+    }
+  })
+})
+
+test('stow writes the rpc client next to the harness', async (t) => {
+  const dir = new URL('basic/', fixtures)
+
+  const written = await artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), {
+    client: 'bare-rpc',
+    server: 'bare-rpc'
+  })
+
+  t.alike(written.slice(0, 6), [
+    { url: new URL('out/javascript-sidecar/index.js', dir) },
+    { url: new URL('out/javascript-sidecar/index.d.ts', dir) },
+    { url: new URL('out/javascript-sidecar/client.js', dir) },
+    { url: new URL('out/javascript-sidecar/client.d.ts', dir) },
+    { url: new URL('out/javascript-sidecar/package.json', dir) },
+    { url: new URL('out/javascript-sidecar/index.bundle', dir) }
+  ])
+
+  t.ok(
+    read(dir, 'out/javascript-sidecar/index.js').includes('import * as client from "./client.js"')
+  )
 })
 
 test('stow throws without target', async (t) => {
@@ -121,7 +165,7 @@ test('stow throws without target', async (t) => {
     for await (const _ of stow(
       new URL('basic/core.js', fixtures),
       undefined,
-      new URL('basic/out/index.js', fixtures)
+      new URL('basic/out/javascript-sidecar', fixtures)
     )) {
       //
     }
@@ -138,45 +182,29 @@ test('stow throws without out', async (t) => {
 
 test('stow accepts a subset of target hosts', async (t) => {
   const dir = new URL('basic/', fixtures)
-  const entry = new URL('core.js', dir)
-  const out = new URL('out/index.js', dir)
 
-  const artifacts = []
-
-  for await (const artifact of stow(entry, 'bare-sidecar', out, {
+  const written = await artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), {
     hosts: ['darwin-arm64']
-  })) {
-    artifacts.push(artifact)
-  }
+  })
 
-  t.alike(artifacts, [
-    { url: out },
-    { url: new URL('out/index.d.ts', dir) },
-    { url: new URL('out/index.bundle', dir) },
-    ...prebuilds(dir, ['darwin-arm64'])
-  ])
+  t.alike(written.slice(4), prebuilds(dir, ['darwin-arm64']))
 })
 
 test('stow defaults base to the closest directory containing every module', async (t) => {
   const dir = new URL('reroot/app/', fixtures)
-  const entry = new URL('core.js', dir)
-  const out = new URL('out/index.js', dir)
 
-  const artifacts = []
-
-  for await (const artifact of stow(entry, 'bare-sidecar', out)) {
-    artifacts.push(artifact)
-  }
-
-  t.alike(artifacts, [
-    { url: out },
-    { url: new URL('out/index.d.ts', dir) },
-    { url: new URL('out/index.bundle', dir) },
+  t.alike(await artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir)), [
+    { url: new URL('out/javascript-sidecar/index.js', dir) },
+    { url: new URL('out/javascript-sidecar/index.d.ts', dir) },
+    { url: new URL('out/javascript-sidecar/package.json', dir) },
+    { url: new URL('out/javascript-sidecar/index.bundle', dir) },
     ...prebuilds(dir),
-    { url: new URL('out/index.bundle.d/node_modules/dummy/asset.txt', dir) }
+    { url: new URL('out/javascript-sidecar/index.bundle.d/node_modules/dummy/asset.txt', dir) }
   ])
 
-  const bundle = Bundle.from(fs.readFileSync(fileURLToPath(new URL('out/index.bundle', dir))))
+  const bundle = Bundle.from(
+    fs.readFileSync(fileURLToPath(new URL('out/javascript-sidecar/index.bundle', dir)))
+  )
 
   const resolutions = Object.values(bundle.resolutions).flatMap((imports) => Object.values(imports))
 
@@ -190,57 +218,98 @@ test('stow defaults base to the closest directory containing every module', asyn
 
 test('stow throws when base does not contain every module', async (t) => {
   const base = new URL('reroot/app/', fixtures)
-  const entry = new URL('core.js', base)
-  const out = new URL('out/index.js', base)
 
-  await t.exception(async () => {
-    for await (const _ of stow(entry, 'bare-sidecar', out, { base })) {
-      //
-    }
-  }, /is outside base/)
+  await t.exception(
+    artifacts(new URL('core.js', base), new URL('out/javascript-sidecar', base), { base }),
+    /is outside base/
+  )
 })
 
-test('stow throws when the harness imports a package it cannot resolve', async (t) => {
+test('stow accepts a language provider object', async (t) => {
   const dir = new URL('basic/', fixtures)
-  const entry = new URL('core.js', dir)
-  const out = new URL('out/unresolved.js', dir)
 
-  const target = {
-    ...sidecar,
-    generate() {
-      return [{ source: "require('bare-stow-missing')" }]
-    }
-  }
+  const written = await artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), {
+    language: { ...javascript }
+  })
 
-  await t.exception(async () => {
-    for await (const _ of stow(entry, target, out)) {
-      //
-    }
-  }, /imports 'bare-stow-missing', which the package containing it does not depend on/)
+  t.alike(written.slice(0, 2), [
+    { url: new URL('out/javascript-sidecar/index.js', dir) },
+    { url: new URL('out/javascript-sidecar/index.d.ts', dir) }
+  ])
+})
 
-  t.absent(fs.existsSync(fileURLToPath(out)), 'nothing is written')
+test('stow throws for a language the target does not support', async (t) => {
+  const dir = new URL('basic/', fixtures)
+
+  const language = { ...javascript, name: 'other' }
+
+  await t.exception(
+    artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), { language }),
+    /Target 'bare-sidecar' does not support language 'other'/
+  )
+})
+
+test('stow throws for a language the rpc client does not support', async (t) => {
+  const dir = new URL('basic/', fixtures)
+
+  const language = { ...javascript, name: 'other' }
+
+  const target = { ...sidecar, languages: { other: sidecar.languages.javascript } }
+
+  await t.exception(
+    artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), {
+      target,
+      language,
+      client: 'bare-rpc'
+    }),
+    /RPC library 'bare-rpc' does not support language 'other'/
+  )
+})
+
+test('stow throws for a linked target in a language without addons', async (t) => {
+  const dir = new URL('basic/', fixtures)
+
+  const target = { ...sidecar, linked: true }
+
+  await t.exception(
+    artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), { target }),
+    /Language 'javascript' does not support linked addons/
+  )
 })
 
 test('stow throws for host not supported by target', async (t) => {
   const dir = new URL('basic/', fixtures)
-  const entry = new URL('core.js', dir)
-  const out = new URL('out/index.js', dir)
 
-  await t.exception(async () => {
-    for await (const _ of stow(entry, 'bare-sidecar', out, {
+  await t.exception(
+    artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), {
       hosts: ['ios-arm64']
-    })) {
-      //
-    }
-  }, /Host 'ios-arm64' is not supported by target 'bare-sidecar'/)
+    }),
+    /Host 'ios-arm64' is not supported by target 'bare-sidecar'/
+  )
 })
+
+async function artifacts(entry, out, opts = {}) {
+  const { target = 'bare-sidecar', ...rest } = opts
+
+  const written = []
+
+  for await (const artifact of stow(entry, target, out, rest)) {
+    written.push(artifact)
+  }
+
+  return written
+}
+
+function read(dir, file) {
+  return fs.readFileSync(fileURLToPath(new URL(file, dir)), 'utf8')
+}
 
 // The `bare-signals` addon of the shim runtime is offloaded alongside every
 // bundle.
 function prebuilds(dir, hosts = sidecar.hosts) {
   return hosts.map((host) => ({
     url: new URL(
-      `out/index.bundle.d/node_modules/bare-signals/prebuilds/${host}/bare-signals.bare`,
+      `out/javascript-sidecar/index.bundle.d/node_modules/bare-signals/prebuilds/${host}/bare-signals.bare`,
       dir
     )
   }))
