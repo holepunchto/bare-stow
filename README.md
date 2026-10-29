@@ -91,8 +91,8 @@ The language lays out the package and the target adds what loads the addons. For
 The harness is generated in one of these languages, selected with `language` and configured with `languageOptions`:
 
 - `javascript` writes an npm package. The `module` option is either `'esm'`, the default, or `'cjs'`.
-- `kotlin` writes an Android library module for AGP 9 or later and Kotlin 2.3 or later. The `package` option names the package of the generated code and is required. The dependencies are published to JitPack (<https://jitpack.io>), so add it to the repositories of the application.
-- `python` writes a Python package for Python 3.10 or later.
+- `kotlin` writes an Android library module. The `package` option names the package of the generated code and is required. The dependencies are published to JitPack (<https://jitpack.io>), so add it to the repositories of the application.
+- `python` writes a Python package.
 - `swift` writes a Swift package.
 
 For example, with an RPC client and server:
@@ -104,11 +104,18 @@ $ bare-stow pack --target bare-sidecar --language python --client bare-rpc --ser
 ```python
 import my_core
 
-ipc, rpc = await my_core.start()
+
+async def on_greet(req):
+    await req.reply(b"hello")
+
+
+ipc, rpc = await my_core.start(handlers=lambda router: router.on_request(2, on_greet))
 
 await rpc.request(1, b"ping")
 await ipc.terminate()
 ```
+
+With an RPC client, `start()` takes the handlers for the requests and events of the bundle, so that they are registered before the bundle can send any.
 
 ## Protocol
 

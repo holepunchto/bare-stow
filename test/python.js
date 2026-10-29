@@ -55,7 +55,7 @@ test('python harness package for a bundle with rpc', async (t) => {
 
   t.ok(
     read(dir, 'out/python-sidecar/python_sidecar/__init__.py').includes(
-      'from .client import Client, attach'
+      'from .client import Client, Handlers, attach'
     )
   )
   t.ok(

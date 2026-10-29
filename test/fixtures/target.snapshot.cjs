@@ -32,14 +32,14 @@ const client = require("./core.client.js")
 const bundle = require.resolve("./index.bundle")
 
 module.exports = {
-  async start({ timeout, grace, ...opts } = {}) {
+  async start({ timeout, grace, handlers = () => {}, ...opts } = {}) {
     const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
     const ipc = stow.wrap(sidecar, { kill: () => sidecar.kill('SIGKILL'), timeout, grace })
 
     sidecar.on('exit', (code, signal) => ipc.exited(code, signal))
 
-    const rpc = client.attach(ipc)
+    const rpc = client.attach(ipc, handlers)
 
     await ipc.ready
 
@@ -49,7 +49,7 @@ module.exports = {
 `
 
 exports['harness bare-sidecar with client - types - 0'] = `export function start(
-  opts?: import('bare-sidecar').SidecarOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'>
+  opts?: import('bare-sidecar').SidecarOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'> & { handlers?: import("./core.client.js").Handlers }
 ): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.js").attach> }>
 `
 
@@ -83,14 +83,14 @@ import * as client from "./core.client.mjs"
 
 const bundle = new URL(import.meta.resolve("./index.bundle"))
 
-export async function start({ timeout, grace, ...opts } = {}) {
+export async function start({ timeout, grace, handlers = () => {}, ...opts } = {}) {
   const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
   const ipc = stow.wrap(sidecar, { kill: () => sidecar.kill('SIGKILL'), timeout, grace })
 
   sidecar.on('exit', (code, signal) => ipc.exited(code, signal))
 
-  const rpc = client.attach(ipc)
+  const rpc = client.attach(ipc, handlers)
 
   await ipc.ready
 
@@ -99,7 +99,7 @@ export async function start({ timeout, grace, ...opts } = {}) {
 `
 
 exports['harness bare-sidecar as esm with client - types - 0'] = `export function start(
-  opts?: import('bare-sidecar').SidecarOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'>
+  opts?: import('bare-sidecar').SidecarOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'> & { handlers?: import("./core.client.mjs").Handlers }
 ): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.mjs").attach> }>
 `
 
@@ -114,7 +114,6 @@ module.exports = {
 
     const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
 
-    // The IPC stream of a worker ends, but never closes, when its thread exits.
     worker.IPC.on('end', () => worker.IPC.destroy())
 
     worker.on('exit', (code) => ipc.exited(code))
@@ -138,17 +137,16 @@ const client = require("./core.client.js")
 const bundle = require.resolve("./index.bundle")
 
 module.exports = {
-  async start({ timeout, grace, ...opts } = {}) {
+  async start({ timeout, grace, handlers = () => {}, ...opts } = {}) {
     const worker = new Worker(bundle, opts)
 
     const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
 
-    // The IPC stream of a worker ends, but never closes, when its thread exits.
     worker.IPC.on('end', () => worker.IPC.destroy())
 
     worker.on('exit', (code) => ipc.exited(code))
 
-    const rpc = client.attach(ipc)
+    const rpc = client.attach(ipc, handlers)
 
     await ipc.ready
 
@@ -158,7 +156,7 @@ module.exports = {
 `
 
 exports['harness bare-worker with client - types - 0'] = `export function start(
-  opts?: import('bare-worker').WorkerOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'>
+  opts?: import('bare-worker').WorkerOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'> & { handlers?: import("./core.client.js").Handlers }
 ): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.js").attach> }>
 `
 
@@ -172,7 +170,6 @@ export async function start({ timeout, grace, ...opts } = {}) {
 
   const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
 
-  // The IPC stream of a worker ends, but never closes, when its thread exits.
   worker.IPC.on('end', () => worker.IPC.destroy())
 
   worker.on('exit', (code) => ipc.exited(code))
@@ -194,17 +191,16 @@ import * as client from "./core.client.mjs"
 
 const bundle = import.meta.resolve("./index.bundle")
 
-export async function start({ timeout, grace, ...opts } = {}) {
+export async function start({ timeout, grace, handlers = () => {}, ...opts } = {}) {
   const worker = new Worker(bundle, opts)
 
   const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
 
-  // The IPC stream of a worker ends, but never closes, when its thread exits.
   worker.IPC.on('end', () => worker.IPC.destroy())
 
   worker.on('exit', (code) => ipc.exited(code))
 
-  const rpc = client.attach(ipc)
+  const rpc = client.attach(ipc, handlers)
 
   await ipc.ready
 
@@ -213,7 +209,7 @@ export async function start({ timeout, grace, ...opts } = {}) {
 `
 
 exports['harness bare-worker as esm with client - types - 0'] = `export function start(
-  opts?: import('bare-worker').WorkerOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'>
+  opts?: import('bare-worker').WorkerOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'> & { handlers?: import("./core.client.mjs").Handlers }
 ): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.mjs").attach> }>
 `
 
@@ -233,7 +229,12 @@ class Started(NamedTuple):
     ipc: IPC
 
 
-async def start(*, timeout=None, grace=DEFAULT_GRACE, **opts) -> Started:
+async def start(
+    *,
+    timeout=None,
+    grace=DEFAULT_GRACE,
+    **opts,
+) -> Started:
     sidecar = await spawn(bundle, **opts)
 
     ipc = wrap(sidecar, kill=sidecar.kill, timeout=timeout, grace=grace)
@@ -262,7 +263,7 @@ from typing import NamedTuple
 from bare_sidecar import spawn
 from bare_stow_host import DEFAULT_GRACE, IPC, wrap
 
-from .client import Client, attach
+from .client import Client, Handlers, attach
 
 bundle = Path(__file__).parent / "index.bundle"
 
@@ -274,7 +275,13 @@ class Started(NamedTuple):
     rpc: Client
 
 
-async def start(*, timeout=None, grace=DEFAULT_GRACE, **opts) -> Started:
+async def start(
+    *,
+    timeout=None,
+    grace=DEFAULT_GRACE,
+    handlers: Handlers = lambda router: None,
+    **opts,
+) -> Started:
     sidecar = await spawn(bundle, **opts)
 
     ipc = wrap(sidecar, kill=sidecar.kill, timeout=timeout, grace=grace)
@@ -283,7 +290,7 @@ async def start(*, timeout=None, grace=DEFAULT_GRACE, **opts) -> Started:
     _watching.add(watching)
     watching.add_done_callback(_watching.discard)
 
-    rpc = attach(ipc)
+    rpc = attach(ipc, handlers)
 
     await ipc.ready
 
@@ -344,7 +351,8 @@ public struct Started: Sendable {
 
 public func start(
   timeout: TimeInterval? = nil,
-  grace: TimeInterval = BareStowHost.IPC.defaultGrace
+  grace: TimeInterval = BareStowHost.IPC.defaultGrace,
+  handlers: Handlers? = nil
 ) async throws -> Started {
   let bundle = Bundle.module.url(forResource: "index.bundle", withExtension: nil)!
 
@@ -359,7 +367,7 @@ public func start(
     }
   }
 
-  let rpc = attach(ipc)
+  let rpc = attach(ipc, handlers)
 
   try await ipc.ready()
 
@@ -417,7 +425,8 @@ public struct Started: Sendable {
 public func start(
   options: Worklet.Options = Worklet.Options(),
   timeout: TimeInterval? = nil,
-  grace: TimeInterval = BareStowHost.IPC.defaultGrace
+  grace: TimeInterval = BareStowHost.IPC.defaultGrace,
+  handlers: Handlers? = nil
 ) async throws -> Started {
   let bundle = Bundle.module.url(forResource: "index.bundle", withExtension: nil)!
 
@@ -432,7 +441,7 @@ public func start(
 
   Task { ipc.exited(code: await worklet.wait()) }
 
-  let rpc = attach(ipc)
+  let rpc = attach(ipc, handlers)
 
   try await ipc.ready()
 
@@ -446,34 +455,29 @@ import android.content.Context
 import kotlin.time.Duration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
-import to.holepunch.bare.kit.IPC as WorkletIPC
+import to.holepunch.bare.kit.Ipc as WorkletIpc
 import to.holepunch.bare.kit.Worklet
-import to.holepunch.bare.stow.host.IPC
-import to.holepunch.bare.stow.host.Transport
+import to.holepunch.bare.stow.host.Ipc
 
-class Started(val worklet: Worklet, val ipc: IPC)
+class Started(val worklet: Worklet, val ipc: Ipc)
 
 suspend fun start(
   context: Context,
   options: Worklet.Options = Worklet.Options(),
   timeout: Duration? = null,
-  grace: Duration = IPC.DEFAULT_GRACE,
+  grace: Duration = Ipc.DEFAULT_GRACE,
 ): Started {
   val worklet = Worklet(context, options)
 
-  val transport = WorkletIPC(worklet)
+  val transport = WorkletIpc(worklet)
 
   worklet.start("com/example/core/index.bundle")
 
   val ipc =
-    IPC(
-      object : Transport {
-        override val data: Flow<ByteArray> = transport.data
-
-        override suspend fun write(data: ByteArray) = transport.write(data)
-      },
+    Ipc(
+      transport.data,
+      transport::write,
       kill = { worklet.terminate() },
       timeout = timeout,
       grace = grace,

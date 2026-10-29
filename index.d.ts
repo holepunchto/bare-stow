@@ -125,7 +125,8 @@ interface TargetContext<O extends LanguageOptions = LanguageOptions> {
   bundle: string
   /**
    * A reference from the harness to the generated RPC client module, or `null` when no client was
-   * requested. The module exposes `attach(ipc)`, which binds the client to the IPC handle.
+   * requested. The module exposes `attach(ipc, handlers)`, which binds the client to the IPC handle
+   * once `handlers` has registered the handlers of the client, and the `Handlers` type.
    */
   client: string | null
   /**
@@ -250,8 +251,10 @@ interface RPCContext<O extends LanguageOptions = LanguageOptions> {
 /** An RPC library's support for one language. */
 interface RPCLanguage<O extends LanguageOptions = LanguageOptions> {
   /**
-   * Generate a module exposing `attach(ipc)`, which binds an RPC instance to the IPC handle and
-   * returns it.
+   * Generate a module exposing `attach(ipc, handlers)`, which calls `handlers` to register the
+   * handlers of an RPC instance, binds it to the IPC handle, and returns it, and the `Handlers`
+   * type. The handlers are registered first so that none of the requests and events of the bundle
+   * arrive before them.
    * @param context - The RPC context describing the role and language options to generate for.
    */
   generate(context: RPCContext<O>): Generated

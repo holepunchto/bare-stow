@@ -133,7 +133,7 @@ test('stow declares the dependencies of the generated modules', async (t) => {
     dependencies: {
       'bare-sidecar': '^0.5.12',
       'bare-stow-host': '^0.1.0',
-      'bare-rpc': '^1.3.2'
+      'bare-rpc': '^1.3.9'
     }
   })
 })

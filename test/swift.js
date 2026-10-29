@@ -52,7 +52,7 @@ test('swift harness package for a bundle with rpc', async (t) => {
 
   t.ok(
     read(dir, 'out/swift-sidecar/Sources/SwiftSidecar/Harness.swift').includes(
-      'let rpc = attach(ipc)'
+      'let rpc = attach(ipc, handlers)'
     )
   )
   t.ok(read(dir, 'out/swift-sidecar/Sources/SwiftSidecar/Client.swift').includes('import BareRPC'))

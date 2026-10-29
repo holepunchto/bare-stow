@@ -60,7 +60,7 @@ test('link writes a kotlin module of the addons of several graphs', async (t) =>
   const manifest = read(dir, 'out/link-kotlin/build.gradle')
 
   t.ok(manifest.includes('namespace = "to.holepunch.addons"'))
-  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.1.0"'))
+  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.1.1"'))
   t.ok(manifest.includes('jniLibs.directories.add("src/main/addons")'))
 })
 

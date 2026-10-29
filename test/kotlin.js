@@ -25,7 +25,7 @@ test('kotlin harness module for a bundle on bare-kit', async (t) => {
   const manifest = read(dir, 'out/kotlin-kit/build.gradle')
 
   t.ok(manifest.includes('namespace = "to.holepunch.echo"'))
-  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.1.0"'))
+  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.1.1"'))
 })
 
 test('kotlin harness module links the addons of a bundle on bare-kit', async (t) => {
@@ -70,7 +70,7 @@ test('kotlin harness module for a bundle with rpc', async (t) => {
 
   t.ok(
     read(dir, 'out/kotlin-kit-rpc/src/main/kotlin/to/holepunch/echo/Harness.kt').includes(
-      'val rpc = attach(ipc)'
+      'val rpc = attach(ipc, handlers)'
     )
   )
   t.ok(
@@ -80,7 +80,7 @@ test('kotlin harness module for a bundle with rpc', async (t) => {
   )
   t.ok(
     read(dir, 'out/kotlin-kit-rpc/build.gradle').includes(
-      'api "com.github.holepunchto.bare-rpc-kotlin:bare-rpc-kotlin:v0.3.0"'
+      'api "com.github.holepunchto.bare-rpc-kotlin:bare-rpc-kotlin:v0.4.0"'
     )
   )
 })
