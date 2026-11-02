@@ -201,7 +201,7 @@ interface Target {
   isolation: Resolvable<'process' | 'thread'>
   /**
    * Whether the bundle links against its dependencies rather than inlining them. A linked bundle
-   * also leaves its assets to Bare Kit.
+   * also leaves its assets out, as files that the runtime loads.
    */
   linked: Resolvable<boolean>
   /**
@@ -322,9 +322,10 @@ interface StowArtifact {
  * built-in `bare-kit`, `bare-sidecar`, and `bare-worker`, or a `bare-stow-target-<name>` package).
  * @param out - The directory to write the harness package to, as a `file:` URL or path string.
  * @param opts - Options; see [`StowOptions`](#stowoptions).
- * @returns An async generator that yields each written artifact's `url` as it is produced: the
- * harness and its type declaration, the RPC client and its type declaration, the package manifest,
- * the bundle along with its `base`, and then any offloaded addon or asset files.
+ * @returns An async generator that yields each written artifact's `url` as it is produced: any
+ * addons linked into the package, the harness and its type declaration, the RPC client and its type
+ * declaration, the package manifest, the bundle along with its `base`, and then any assets of a
+ * linked bundle and any offloaded addon or asset files.
  * @throws The `target` argument is missing.
  * @throws The `out` argument is missing.
  * @throws A language option is unknown or invalid, or `out` is not valid as a package.

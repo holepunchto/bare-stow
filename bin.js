@@ -36,14 +36,14 @@ const flags = {
 
 const link = command(
   'link',
-  summary('Link the addons of the module graphs of an application'),
+  summary('Link the addons and assets of the module graphs of an application'),
   rest('<entry...>', 'The entry points of the module graphs'),
   flags.target(),
   flags.targetOption(),
   flags.language(),
   flags.languageOption(),
   flags.server(),
-  flag('--out|-o <path>', 'The directory to write the package of linked addons to'),
+  flag('--out|-o <path>', 'The directory to write the package of linked addons and assets to'),
   flags.builtins(),
   flags.imports(),
   flags.defer(),

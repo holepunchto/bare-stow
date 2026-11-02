@@ -53,8 +53,8 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
 
   const bundleURL = new URL('index' + target.extension, layout.artifacts ?? layout.harness)
 
-  // Linked bundles leave their assets to Bare Kit, next to the bundle or in the
-  // application.
+  // Linked bundles leave their assets out, as files that the runtime loads from
+  // next to the bundle or from the application.
   const resources = target.linked && target.linking === 'app' ? assets.app : null
   const name = resources ?? 'index'
 

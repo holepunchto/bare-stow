@@ -1,6 +1,6 @@
 # bare-stow
 
-Module bundling and harness generation for Bare. `bare-stow` packs a module graph into a bundle with <https://github.com/holepunchto/bare-pack> and generates a harness package that boots the bundle from a host application.
+Module bundling and harness generation for Bare. `bare-stow` packs a module graph into a bundle with <https://github.com/holepunchto/bare-pack> and generates a harness package that boots the bundle from a host application written in JavaScript, Kotlin, Python, or Swift.
 
 ```
 npm i [-g] bare-stow
@@ -22,6 +22,14 @@ module.exports = async function start(ipc, ready) {
   return async function stop() {
     // Clean up before the bundle exits.
   }
+}
+```
+
+If a `server` is requested, `start()` instead receives `{ rpc, ipc }`, with `rpc` bound to the IPC stream. Its handlers are registered in `start()`, before the bundle signals ready:
+
+```js
+module.exports = function start({ rpc }) {
+  rpc.respond(1, (req, data) => data)
 }
 ```
 
@@ -53,12 +61,8 @@ const { ipc } = await harness.start()
 
 ipc.write(Buffer.from('hello from the host'))
 
-ipc.on('exit', (code) => {
-  console.log('bundle exited with', code)
-})
-
-// Request a graceful shutdown.
-ipc.destroy()
+// Request a graceful shutdown, which resolves with the exit code.
+const code = await ipc.terminate()
 ```
 
 The bundle imports `bare-stow-runtime`, and the RPC library if a `server` is requested, so the package containing the entry must depend on them.
@@ -67,13 +71,19 @@ The bundle imports `bare-stow-runtime`, and the RPC library if a `server` is req
 
 ## Targets
 
-- `bare-sidecar` runs the bundle in a separate process using <https://github.com/holepunchto/bare-sidecar>. `start()` also accepts the options of `bare-sidecar`.
-- `bare-worker` runs the bundle in a thread of a Bare host using <https://github.com/holepunchto/bare-worker>.
-- `bare-kit` runs the bundle in a worklet using <https://github.com/holepunchto/bare-kit>, with the `swift` language on macOS and iOS and the `kotlin` language on Android. `start()` also accepts the options of the worklet and returns it alongside `ipc`. Native addons are linked with <https://github.com/holepunchto/bare-link> and declared in the manifest, and assets are written next to the bundle. With the `linking` option set to `'app'`, both are left to `link()` instead.
+- `bare-sidecar` runs the bundle in a separate process using <https://github.com/holepunchto/bare-sidecar>, with the `javascript`, `python`, and `swift` languages on desktop. In JavaScript and Python, `start()` also accepts the options of `bare-sidecar`.
+- `bare-worker` runs the bundle in a thread of a Bare host using <https://github.com/holepunchto/bare-worker>, with the `javascript` language.
+- `bare-kit` runs the bundle in a worklet using <https://github.com/holepunchto/bare-kit>, with the `swift` language on macOS and iOS and the `kotlin` language on Android. `start()` also accepts the options of the worklet and returns it alongside `ipc`, and in Kotlin takes the Android `Context` first. Native addons are linked with <https://github.com/holepunchto/bare-link> and declared in the manifest, and assets are written next to the bundle. With the target option `linking` set to `'app'`, both are left to `link()` instead.
 
 ## Linking
 
-A target may leave addons and assets to the application, so that bundles sharing them don't each bring a copy. `link()` then links those of all bundles once, into a package the application depends on:
+A target may leave addons and assets to the application, so that bundles sharing them don't each bring a copy. For `bare-kit`, stow each bundle with the target option `linking` set to `'app'`:
+
+```console
+$ bare-stow pack --target bare-kit --target-option linking=app --language swift --out ./ios/Core ./core.js
+```
+
+`link()` then links the addons and assets of all bundles once, into a package the application depends on:
 
 ```js
 const entries = [new URL('file:///app/core.js'), new URL('file:///app/push.js')]
@@ -84,7 +94,7 @@ for await (const artifact of stow.link(entries, 'bare-kit', out, { language: 'sw
 }
 ```
 
-The language lays out the package and the target adds what loads the addons. For `bare-kit`, that's `bare-kit-swift` or `bare-kit-kotlin`. The assets go in a folder named by `stow.resources`, which a Swift application copies into its bundle. `link()` takes the same options as `stow()`.
+The language lays out the package and the target adds what loads the addons. For `bare-kit`, that's `bare-kit-swift` or `bare-kit-kotlin`. The assets go in a folder named by `stow.resources`, listed in a file of the same name with the `.assets` extension, which a Swift application copies into its bundle. `link()` takes the same options as `stow()`, except `client` and `base`.
 
 ## Languages
 
@@ -102,17 +112,21 @@ $ bare-stow pack --target bare-sidecar --language python --client bare-rpc --ser
 ```
 
 ```python
+import asyncio
+
 import my_core
 
 
-async def on_greet(req):
-    await req.reply(b"hello")
+async def main():
+    ipc, rpc = await my_core.start(
+        handlers=lambda router: router.on_request(2, lambda req: b"hello")
+    )
+
+    await rpc.request(1, b"ping")
+    await ipc.terminate()
 
 
-ipc, rpc = await my_core.start(handlers=lambda router: router.on_request(2, on_greet))
-
-await rpc.request(1, b"ping")
-await ipc.terminate()
+asyncio.run(main())
 ```
 
 With an RPC client, `start()` takes the handlers for the requests and events of the bundle, so that they are registered before the bundle can send any.
@@ -122,12 +136,12 @@ With an RPC client, `start()` takes the handlers for the requests and events of 
 The harness and the bundle multiplex a control channel and the user data over a single duplex stream. The `ipc` returned from `start()` is a duplex stream of the user data, so RPC libraries such as `bare-rpc` bind to it like any other stream. Embedders bringing their own transport can use the protocol directly:
 
 - <https://github.com/holepunchto/bare-stow-protocol> implements the framing.
-- <https://github.com/holepunchto/bare-stow-host> implements the host side and documents `ipc`.
+- <https://github.com/holepunchto/bare-stow-host> implements the host side and documents `ipc`, with <https://github.com/holepunchto/bare-stow-host-kotlin>, <https://github.com/holepunchto/bare-stow-host-python>, and <https://github.com/holepunchto/bare-stow-host-swift> for the other languages.
 - <https://github.com/holepunchto/bare-stow-runtime> implements the bundle side.
 
 ## Providers
 
-Languages, targets, and RPC libraries are providers that may live outside `bare-stow`. `stow()` and `link()` accept a provider object in place of a name, and names are resolved through `resolveLanguage`, `resolveTarget`, and `resolveRPC`. Targets and RPC libraries generate code for each language they list under `languages`, and providers without an entry for the language of the harness are rejected. Targets may also take options, given as `targetOptions`. The server side of an RPC library is always generated as JavaScript, as the bundle runs in Bare. See `index.d.ts` for the interfaces.
+Languages, targets, and RPC libraries are providers that may live outside `bare-stow`. `stow()` and `link()` accept a provider object in place of a name, and names other than the built-in ones are resolved through `resolveLanguage`, `resolveTarget`, and `resolveRPC`. For example, <https://github.com/holepunchto/bare-stow-target-react-native> is a target for React Native. Targets and RPC libraries generate code for each language they list under `languages`, and providers without an entry for the language of the harness are rejected. Targets may also take options, given as `targetOptions`. The server side of an RPC library is always generated as JavaScript, as the bundle runs in Bare. See `index.d.ts` for the interfaces.
 
 ## CLI
 
