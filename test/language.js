@@ -268,9 +268,7 @@ test('language kotlin writes a jvm module manifest', (t) => {
     kotlin.manifest({
       name: 'com.example.core',
       dependencies: { 'com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin': 'v0.2.0' },
-      options: { package: 'com.example.core', platform: 'jvm' },
-      hosts: ['linux-x64'],
-      artifacts: ['src/main/resources/com/example/core/index.bundle']
+      options: { package: 'com.example.core', platform: 'jvm' }
     })
   )
 })

@@ -184,8 +184,13 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
 
   if (layout.listing) {
     const url = listingURL(bundleURL)
+    const dir = path.posix.dirname(bundleURL.pathname)
 
-    await fs.writeFile(url, offloaded.map((artifact) => listed(bundleURL, artifact.url)).join(''))
+    const listing = offloaded.map(
+      (artifact) => '/' + decodeURIComponent(path.posix.relative(dir, artifact.url.pathname)) + '\n'
+    )
+
+    await fs.writeFile(url, listing.join(''))
     yield { url }
   }
 }
@@ -195,12 +200,6 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
 // extract along with the bundle.
 function listingURL(bundleURL) {
   return new URL(path.basename(bundleURL.pathname) + '.files', bundleURL)
-}
-
-function listed(bundleURL, url) {
-  const relative = path.posix.relative(path.posix.dirname(bundleURL.pathname), url.pathname)
-
-  return '/' + decodeURIComponent(relative) + '\n'
 }
 
 function resolveBase(base, bundle) {
