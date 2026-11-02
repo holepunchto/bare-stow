@@ -26,16 +26,9 @@ test('sidecar harness echoes user data', async (t) => {
   t.is(code, 0)
 })
 
-test('sidecar esm harness echoes user data', async (t) => {
-  const dir = new URL('echo/', fixtures)
-  const entry = new URL('core.js', dir)
-  const out = new URL('out/index.mjs', dir)
-
-  for await (const _ of stow(entry, 'bare-sidecar', out)) {
-    //
-  }
-
-  const harness = await import(out.href)
+test('sidecar cjs harness echoes user data', async (t) => {
+  const out = await build('echo', { languageOptions: { module: 'cjs' } }, 'javascript-sidecar-cjs')
+  const harness = require(fileURLToPath(out))
   const { ipc } = await harness.start()
 
   const echo = new Promise((resolve) => ipc.once('data', resolve))
@@ -252,27 +245,40 @@ function kill(pid, signal) {
   else process.kill(pid, signal)
 }
 
-async function build(name) {
+test('sidecar harness round-trips rpc requests', async (t) => {
+  const harness = await bundle('rpc', { client: 'bare-rpc', server: 'bare-rpc' })
+  const { ipc, rpc } = await harness.start()
+
+  const req = rpc.request(1)
+
+  req.send(Buffer.from('ping'))
+
+  t.alike(await req.reply(), Buffer.from('ping'))
+
+  await ipc.terminate()
+})
+
+async function build(name, opts, pkg = 'javascript-sidecar') {
   const dir = new URL(name + '/', fixtures)
   const entry = new URL('core.js', dir)
-  const out = new URL('out/index.js', dir)
+  const out = new URL(`out/${pkg}/`, dir)
 
-  for await (const _ of stow(entry, 'bare-sidecar', out)) {
+  for await (const _ of stow(entry, 'bare-sidecar', out, opts)) {
     //
   }
 
-  return out
+  return new URL('index.js', out)
 }
 
-async function bundle(name) {
-  return require(fileURLToPath(await build(name)))
+async function bundle(name, opts) {
+  return import((await build(name, opts)).href)
 }
 
 // Starts the harness from a separate host process that either exits or crashes
 // without terminating it. The sidecar inherits the host stdout, so the output
 // only ends once the sidecar has exited as well.
 async function orphan(name, mode) {
-  const out = await build(name)
+  const out = await build(name, { languageOptions: { module: 'cjs' } }, 'javascript-sidecar-orphan')
 
   const host = new Sidecar(
     fileURLToPath(new URL('orphan/host.js', fixtures)),

@@ -14,6 +14,8 @@
     }
   },
   "dependencies": {
-    "bare-stow": "file:../../../.."
+    "bare-stow": "file:../../../..",
+    "bare-stow-host": "^0.1.0",
+    "bare-stow-runtime": "^0.1.0"
   }
 }

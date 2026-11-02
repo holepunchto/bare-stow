@@ -1,29 +1,29 @@
 const test = require('brittle')
 const { isWindows } = require('which-runtime')
 const shim = require('../lib/shim')
-const rpc = require('../lib/rpc')
+const rpcs = require('../lib/rpc')
 
 const root = isWindows ? 'file://c:' : 'file://'
 
+const entry = new URL(`${root}/app/entry.js`)
+
 test('shim', (t) => {
-  t.snapshot(shim(new URL(`${root}/app/entry.js`), new URL(`${root}/app/__main__.js`)))
+  const { url, modules } = shim(entry, 'process')
+
+  t.is(url.href, new URL('__main__.mjs', entry).href)
+  t.is(modules.size, 1)
+  t.snapshot(modules.get(url.href))
 })
 
-test('shim with bare-rpc server', (t) => {
-  t.snapshot(
-    shim(new URL(`${root}/app/entry.js`), new URL(`${root}/app/__main__.js`), {
-      server: server()
-    })
-  )
+test('shim in a thread', (t) => {
+  const { url, modules } = shim(entry, 'thread')
+
+  t.ok(modules.get(url.href).includes("import runtime from 'bare-stow-runtime'\n"))
 })
 
-function server() {
-  const [setup] = rpc('bare-rpc').generate({
-    ipc: 'ipc',
-    rpc: 'rpc',
-    module: 'esm',
-    role: 'server'
-  })
+test('shim with server', (t) => {
+  const { url, modules } = shim(entry, 'process', rpcs('bare-rpc'))
 
-  return setup.source
-}
+  t.snapshot(modules.get(url.href), 'main')
+  t.snapshot(modules.get(new URL('__server__.mjs', entry).href), 'server')
+})
