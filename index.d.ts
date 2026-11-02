@@ -31,6 +31,11 @@ interface Layout {
   addons?: URL
   /** The directory the assets of linked bundles are linked into, or unset if unsupported. */
   resources?: URL
+  /**
+   * Whether the files written next to the bundle are listed in `<bundle>.files`, one `/<path>` per
+   * line, for a harness that extracts them along with the bundle.
+   */
+  listing?: boolean
 }
 
 /** The context passed to a language's `manifest()`. */
@@ -68,6 +73,8 @@ interface JavaScriptOptions {
 interface KotlinOptions {
   /** The package of the generated code, such as `'com.example.core'`, which is also its namespace. */
   package: string
+  /** The platform of the module, either `'android'`, the default, or `'jvm'`. */
+  platform: 'android' | 'jvm'
 }
 
 type LanguageName = 'javascript' | 'kotlin' | 'python' | 'swift'
@@ -325,7 +332,7 @@ interface StowArtifact {
  * @returns An async generator that yields each written artifact's `url` as it is produced: any
  * addons linked into the package, the harness and its type declaration, the RPC client and its type
  * declaration, the package manifest, the bundle along with its `base`, and then any assets of a
- * linked bundle and any offloaded addon or asset files.
+ * linked bundle, any offloaded addon or asset files, and the listing of those files.
  * @throws The `target` argument is missing.
  * @throws The `out` argument is missing.
  * @throws A language option is unknown or invalid, or `out` is not valid as a package.

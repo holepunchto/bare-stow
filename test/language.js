@@ -187,7 +187,21 @@ test('language kotlin requires a package', (t) => {
     () => kotlin.options({ package: 'com.example', flavor: 'x' }),
     /Unknown option 'flavor'/
   )
-  t.alike(kotlin.options({ package: 'com.example.core' }), { package: 'com.example.core' })
+  t.alike(kotlin.options({ package: 'com.example.core' }), {
+    package: 'com.example.core',
+    platform: 'android'
+  })
+})
+
+test('language kotlin accepts a platform', (t) => {
+  t.alike(kotlin.options({ package: 'com.example', platform: 'jvm' }), {
+    package: 'com.example',
+    platform: 'jvm'
+  })
+  t.exception(
+    () => kotlin.options({ package: 'com.example', platform: 'ios' }),
+    /Option 'platform' must be 'android' or 'jvm', got 'ios'/
+  )
 })
 
 test('language kotlin lays the harness out as a module', (t) => {
@@ -199,6 +213,19 @@ test('language kotlin lays the harness out as a module', (t) => {
     addons: new URL('file:///app/core/src/main/addons/'),
     resources: new URL('file:///app/core/src/main/assets/')
   })
+})
+
+test('language kotlin lays the harness out as a jvm module', (t) => {
+  t.alike(
+    kotlin.layout(new URL('file:///app/core/'), { package: 'com.example.core', platform: 'jvm' }),
+    {
+      harness: new URL('file:///app/core/src/main/kotlin/com/example/core/Harness.kt'),
+      artifacts: new URL('file:///app/core/src/main/resources/com/example/core/'),
+      name: 'com.example.core',
+      manifest: new URL('file:///app/core/build.gradle'),
+      listing: true
+    }
+  )
 })
 
 test('language kotlin names siblings as source files', (t) => {
@@ -216,6 +243,13 @@ test('language kotlin references assets by their path within the assets', (t) =>
     ),
     'com/example/core/index.bundle'
   )
+  t.is(
+    kotlin.reference(
+      new URL('file:///app/core/src/main/kotlin/com/example/core/Harness.kt'),
+      new URL('file:///app/core/src/main/resources/com/example/core/index.bundle')
+    ),
+    'com/example/core/index.bundle'
+  )
 })
 
 test('language kotlin writes the dependencies into the manifest', (t) => {
@@ -225,6 +259,18 @@ test('language kotlin writes the dependencies into the manifest', (t) => {
       dependencies: { 'com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin': 'v0.1.0' },
       hosts: ['android-arm64'],
       artifacts: ['src/main/assets/com/example/core/index.bundle']
+    })
+  )
+})
+
+test('language kotlin writes a jvm module manifest', (t) => {
+  t.snapshot(
+    kotlin.manifest({
+      name: 'com.example.core',
+      dependencies: { 'com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin': 'v0.2.0' },
+      options: { package: 'com.example.core', platform: 'jvm' },
+      hosts: ['linux-x64'],
+      artifacts: ['src/main/resources/com/example/core/index.bundle']
     })
   )
 })

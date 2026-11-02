@@ -88,6 +88,16 @@ dependencies {
 }
 `
 
+exports['language kotlin writes a jvm module manifest - should match snapshot - 0'] = `plugins {
+  id "java-library"
+  id "org.jetbrains.kotlin.jvm"
+}
+
+dependencies {
+  api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.2.0"
+}
+`
+
 exports['language swift declares linked addons as binary targets - should match snapshot - 0'] =
   `// swift-tools-version: 5.10
 import PackageDescription
