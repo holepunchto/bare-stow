@@ -165,7 +165,7 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
   }
 
   await fs.writeFile(bundleURL, encodeBundle(bundle, target.format, target.encoding ?? 'utf8'))
-  yield { url: bundleURL }
+  yield { url: bundleURL, base }
 
   if (unpacked.length > 0) {
     for await (const url of assets.write(new URL('./', bundleURL), name, unpacked)) yield { url }

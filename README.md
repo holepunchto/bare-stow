@@ -44,7 +44,7 @@ Or from the command line:
 $ bare-stow pack --target bare-sidecar --out ./core-harness ./core.js
 ```
 
-This writes a package to `out` with the harness, the bundle, and a manifest declaring the dependencies of the harness. Add the package as a dependency of the host and boot the bundle with `start()`, which resolves once the bundle is ready:
+This writes a package to `out` with the harness, the bundle, and a manifest declaring the dependencies of the harness. `stow()` yields each file once written, and the bundle along with its `base`, the directory that its modules are named relative to. It's the `base` option if given, and otherwise the closest directory containing every module. Add the package as a dependency of the host and boot the bundle with `start()`, which resolves once the bundle is ready:
 
 ```js
 import * as harness from 'core-harness'

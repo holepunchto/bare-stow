@@ -5,6 +5,7 @@ const test = require('brittle')
 const stow = require('..')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'fixtures') + '/')
+const root = new URL('../../', fixtures)
 
 test('kotlin harness module for a bundle on bare-kit', async (t) => {
   const dir = new URL('echo/', fixtures)
@@ -14,7 +15,10 @@ test('kotlin harness module for a bundle on bare-kit', async (t) => {
   t.alike(written, [
     { url: new URL('out/kotlin-kit/src/main/kotlin/to/holepunch/echo/Harness.kt', dir) },
     { url: new URL('out/kotlin-kit/build.gradle', dir) },
-    { url: new URL('out/kotlin-kit/src/main/assets/to/holepunch/echo/index.bundle', dir) }
+    {
+      url: new URL('out/kotlin-kit/src/main/assets/to/holepunch/echo/index.bundle', dir),
+      base: root
+    }
   ])
 
   const harness = read(dir, 'out/kotlin-kit/src/main/kotlin/to/holepunch/echo/Harness.kt')

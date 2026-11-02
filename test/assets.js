@@ -6,6 +6,7 @@ const Bundle = require('bare-bundle')
 const stow = require('..')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'fixtures') + '/')
+const root = new URL('../../', fixtures)
 
 test('stow writes the assets of a linked bundle next to it', async (t) => {
   const dir = new URL('assets/', fixtures)
@@ -15,7 +16,7 @@ test('stow writes the assets of a linked bundle next to it', async (t) => {
   )
 
   t.alike(written.slice(-3), [
-    { url: new URL('out/swift-kit/Sources/SwiftKit/index.bundle', dir) },
+    { url: new URL('out/swift-kit/Sources/SwiftKit/index.bundle', dir), base: root },
     { url: new URL('out/swift-kit/Sources/SwiftKit/index/greeting.txt', dir) },
     { url: new URL('out/swift-kit/Sources/SwiftKit/index.assets', dir) }
   ])
@@ -31,6 +32,7 @@ test('stow writes the assets of a linked bundle next to it', async (t) => {
   const bundle = bundleAt(dir, 'out/swift-kit/Sources/SwiftKit/index.bundle')
 
   t.is(bundle.assets.length, 0)
+  t.alike(nonSources(bundle), [])
   t.ok(resolutions(bundle).includes('/../index/greeting.txt'))
 })
 
@@ -67,7 +69,8 @@ test('stow leaves the assets of a linked bundle to the application', async (t) =
   )
 
   t.alike(written.at(-1), {
-    url: new URL('out/swift-kit-app/Sources/SwiftKitApp/index.bundle', dir)
+    url: new URL('out/swift-kit-app/Sources/SwiftKitApp/index.bundle', dir),
+    base: root
   })
 
   t.ok(
@@ -79,6 +82,7 @@ test('stow leaves the assets of a linked bundle to the application', async (t) =
   const bundle = bundleAt(dir, 'out/swift-kit-app/Sources/SwiftKitApp/index.bundle')
 
   t.is(bundle.assets.length, 0)
+  t.alike(nonSources(bundle), [])
   t.ok(resolutions(bundle).includes('/../bare-stow/greeting.txt'))
 })
 
@@ -146,6 +150,10 @@ function read(dir, file) {
 
 function bundleAt(dir, file) {
   return Bundle.from(fs.readFileSync(fileURLToPath(new URL(file, dir))))
+}
+
+function nonSources(bundle) {
+  return [...bundle.keys()].filter((key) => !/\.(js|mjs|cjs|json)$/.test(key))
 }
 
 function resolutions(bundle) {

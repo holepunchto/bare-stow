@@ -307,6 +307,11 @@ interface LinkOptions extends Omit<StowOptions, 'client' | 'base' | 'resolveRPC'
 interface StowArtifact {
   /** The file URL the artifact was written to. */
   url: URL
+  /**
+   * For the bundle, the directory that its modules are named relative to: the `base` option, or
+   * the closest directory containing every bundled module.
+   */
+  base?: URL
 }
 
 /**
@@ -319,7 +324,7 @@ interface StowArtifact {
  * @param opts - Options; see [`StowOptions`](#stowoptions).
  * @returns An async generator that yields each written artifact's `url` as it is produced: the
  * harness and its type declaration, the RPC client and its type declaration, the package manifest,
- * the bundle, and then any offloaded addon or asset files.
+ * the bundle along with its `base`, and then any offloaded addon or asset files.
  * @throws The `target` argument is missing.
  * @throws The `out` argument is missing.
  * @throws A language option is unknown or invalid, or `out` is not valid as a package.

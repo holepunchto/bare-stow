@@ -2,9 +2,11 @@ const path = require('path')
 const fs = require('fs')
 const { pathToFileURL, fileURLToPath } = require('url')
 const test = require('brittle')
+const Bundle = require('bare-bundle')
 const stow = require('..')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'fixtures') + '/')
+const root = new URL('../../', fixtures)
 
 test('link writes a swift package of the addons of several graphs', async (t) => {
   const dir = new URL('linked/', fixtures)
@@ -128,8 +130,17 @@ test('stow leaves linking to the application for a target that asks for it', asy
   t.alike(written, [
     { url: new URL('out/app/index.js', dir) },
     { url: new URL('out/app/package.json', dir) },
-    { url: new URL('out/app/index.bundle', dir) }
+    { url: new URL('out/app/index.bundle', dir), base: root }
   ])
+
+  const bundle = Bundle.from(fs.readFileSync(fileURLToPath(new URL('out/app/index.bundle', dir))))
+
+  t.is(bundle.addons.length, 2)
+  t.alike(
+    [...bundle.keys()].filter((key) => !/\.(js|mjs|cjs|json)$/.test(key)),
+    [],
+    'the bundle holds only sources'
+  )
 })
 
 test('stow passes target options to the properties of the target', async (t) => {
@@ -153,7 +164,7 @@ test('stow passes target options to the properties of the target', async (t) => 
     written.push(artifact)
   }
 
-  t.alike(written.at(-1), { url: new URL('out/app-mjs/index.bundle.mjs', dir) })
+  t.alike(written.at(-1), { url: new URL('out/app-mjs/index.bundle.mjs', dir), base: root })
 
   t.ok(read(dir, 'out/app-mjs/index.bundle.mjs').startsWith('export default '))
 })

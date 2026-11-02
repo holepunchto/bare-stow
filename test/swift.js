@@ -6,6 +6,7 @@ const stow = require('..')
 const sidecar = require('../lib/target/bare-sidecar')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'fixtures') + '/')
+const root = new URL('../../', fixtures)
 
 test('swift harness package for a bundle without rpc', async (t) => {
   const dir = new URL('echo/', fixtures)
@@ -15,7 +16,7 @@ test('swift harness package for a bundle without rpc', async (t) => {
   t.alike(written, [
     { url: new URL('out/swift-sidecar/Sources/SwiftSidecar/Harness.swift', dir) },
     { url: new URL('out/swift-sidecar/Package.swift', dir) },
-    { url: new URL('out/swift-sidecar/Sources/SwiftSidecar/index.bundle', dir) },
+    { url: new URL('out/swift-sidecar/Sources/SwiftSidecar/index.bundle', dir), base: root },
     ...sidecar.hosts.map((host) => ({
       url: new URL(
         `out/swift-sidecar/Sources/SwiftSidecar/index.bundle.d/node_modules/bare-signals/prebuilds/${host}/bare-signals.bare`,
@@ -47,7 +48,7 @@ test('swift harness package for a bundle with rpc', async (t) => {
     { url: new URL('out/swift-sidecar/Sources/SwiftSidecar/Harness.swift', dir) },
     { url: new URL('out/swift-sidecar/Sources/SwiftSidecar/Client.swift', dir) },
     { url: new URL('out/swift-sidecar/Package.swift', dir) },
-    { url: new URL('out/swift-sidecar/Sources/SwiftSidecar/index.bundle', dir) }
+    { url: new URL('out/swift-sidecar/Sources/SwiftSidecar/index.bundle', dir), base: root }
   ])
 
   t.ok(
@@ -88,7 +89,7 @@ test('swift harness package for a bundle on bare-kit', async (t) => {
   t.alike(written, [
     { url: new URL('out/swift-kit/Sources/SwiftKit/Harness.swift', dir) },
     { url: new URL('out/swift-kit/Package.swift', dir) },
-    { url: new URL('out/swift-kit/Sources/SwiftKit/index.bundle', dir) }
+    { url: new URL('out/swift-kit/Sources/SwiftKit/index.bundle', dir), base: root }
   ])
 
   t.ok(read(dir, 'out/swift-kit/Sources/SwiftKit/Harness.swift').includes('import BareKit'))

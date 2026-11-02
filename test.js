@@ -8,6 +8,7 @@ const sidecar = require('./lib/target/bare-sidecar')
 const javascript = require('./lib/language/javascript')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'test/fixtures') + '/')
+const root = new URL('../../', fixtures)
 
 require('./test/language')
 require('./test/target')
@@ -28,7 +29,7 @@ test('stow writes the harness package and bundle', async (t) => {
     { url: new URL('out/javascript-sidecar/index.js', dir) },
     { url: new URL('out/javascript-sidecar/index.d.ts', dir) },
     { url: new URL('out/javascript-sidecar/package.json', dir) },
-    { url: new URL('out/javascript-sidecar/index.bundle', dir) },
+    { url: new URL('out/javascript-sidecar/index.bundle', dir), base: root },
     ...prebuilds(dir)
   ])
 })
@@ -40,7 +41,7 @@ test('stow strips types from a TypeScript entry', async (t) => {
     { url: new URL('out/javascript-sidecar/index.js', dir) },
     { url: new URL('out/javascript-sidecar/index.d.ts', dir) },
     { url: new URL('out/javascript-sidecar/package.json', dir) },
-    { url: new URL('out/javascript-sidecar/index.bundle', dir) },
+    { url: new URL('out/javascript-sidecar/index.bundle', dir), base: root },
     ...prebuilds(dir)
   ])
 })
@@ -152,7 +153,7 @@ test('stow writes the rpc client next to the harness', async (t) => {
     { url: new URL('out/javascript-sidecar/client.js', dir) },
     { url: new URL('out/javascript-sidecar/client.d.ts', dir) },
     { url: new URL('out/javascript-sidecar/package.json', dir) },
-    { url: new URL('out/javascript-sidecar/index.bundle', dir) }
+    { url: new URL('out/javascript-sidecar/index.bundle', dir), base: root }
   ])
 
   t.ok(
@@ -197,7 +198,7 @@ test('stow defaults base to the closest directory containing every module', asyn
     { url: new URL('out/javascript-sidecar/index.js', dir) },
     { url: new URL('out/javascript-sidecar/index.d.ts', dir) },
     { url: new URL('out/javascript-sidecar/package.json', dir) },
-    { url: new URL('out/javascript-sidecar/index.bundle', dir) },
+    { url: new URL('out/javascript-sidecar/index.bundle', dir), base: root },
     ...prebuilds(dir),
     { url: new URL('out/javascript-sidecar/index.bundle.d/node_modules/dummy/asset.txt', dir) }
   ])

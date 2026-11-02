@@ -7,6 +7,7 @@ const stow = require('..')
 const sidecar = require('../lib/target/bare-sidecar')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'fixtures') + '/')
+const root = new URL('../../', fixtures)
 
 test('python harness package for a bundle without rpc', async (t) => {
   const dir = new URL('echo/', fixtures)
@@ -16,7 +17,7 @@ test('python harness package for a bundle without rpc', async (t) => {
   t.alike(written, [
     { url: new URL('out/python-sidecar/python_sidecar/__init__.py', dir) },
     { url: new URL('out/python-sidecar/pyproject.toml', dir) },
-    { url: new URL('out/python-sidecar/python_sidecar/index.bundle', dir) },
+    { url: new URL('out/python-sidecar/python_sidecar/index.bundle', dir), base: root },
     ...sidecar.hosts.map((host) => ({
       url: new URL(
         `out/python-sidecar/python_sidecar/index.bundle.d/node_modules/bare-signals/prebuilds/${host}/bare-signals.bare`,
@@ -50,7 +51,7 @@ test('python harness package for a bundle with rpc', async (t) => {
     { url: new URL('out/python-sidecar/python_sidecar/__init__.py', dir) },
     { url: new URL('out/python-sidecar/python_sidecar/client.py', dir) },
     { url: new URL('out/python-sidecar/pyproject.toml', dir) },
-    { url: new URL('out/python-sidecar/python_sidecar/index.bundle', dir) }
+    { url: new URL('out/python-sidecar/python_sidecar/index.bundle', dir), base: root }
   ])
 
   t.ok(
@@ -98,7 +99,7 @@ test('python harness package named after a hyphenated directory', async (t) => {
   t.alike(written.slice(0, 3), [
     { url: new URL('out/python-sidecar/python_sidecar/__init__.py', dir) },
     { url: new URL('out/python-sidecar/pyproject.toml', dir) },
-    { url: new URL('out/python-sidecar/python_sidecar/index.bundle', dir) }
+    { url: new URL('out/python-sidecar/python_sidecar/index.bundle', dir), base: root }
   ])
 
   const manifest = read(dir, 'out/python-sidecar/pyproject.toml')
