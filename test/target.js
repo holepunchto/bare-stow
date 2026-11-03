@@ -110,6 +110,16 @@ test('harness bare-kit as kotlin', (t) => {
   ])
 })
 
+test('harness bare-kit as kotlin on the jvm', (t) => {
+  const { source } = targets('bare-kit').languages.kotlin.generate({
+    bundle: 'com/example/core/index.bundle',
+    client: null,
+    options: { package: 'com.example.core', platform: 'jvm' }
+  })
+
+  t.snapshot(source, 'harness')
+})
+
 test('harness accepts a target provider object', (t) => {
   const provided = targets('bare-sidecar')
 
@@ -195,6 +205,41 @@ test('harness bare-kit supports hosts by language', (t) => {
     'ios-arm64-simulator',
     'ios-x64-simulator'
   ])
+})
+
+test('harness bare-kit offloads addons and assets on the jvm', (t) => {
+  const target = targets('bare-kit')
+
+  const resolved = targets.resolve(target, {
+    language: 'kotlin',
+    options: { platform: 'jvm' },
+    targetOptions: targets.options(target)
+  })
+
+  t.is(resolved.linked, false)
+  t.is(resolved.offload, true)
+  t.alike(resolved.hosts, [
+    'darwin-arm64',
+    'darwin-x64',
+    'linux-arm64',
+    'linux-x64',
+    'win32-arm64',
+    'win32-x64'
+  ])
+})
+
+test('harness bare-kit leaves no linking to the app on the jvm', (t) => {
+  const target = targets('bare-kit')
+
+  t.exception(
+    () =>
+      targets.resolve(target, {
+        language: 'kotlin',
+        options: { platform: 'jvm' },
+        targetOptions: targets.options(target, { linking: 'app' })
+      }),
+    /Option 'linking' must be 'package' for the JVM/
+  )
 })
 
 const context = { language: 'javascript', options: {} }

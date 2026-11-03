@@ -29,7 +29,7 @@ test('kotlin harness module for a bundle on bare-kit', async (t) => {
   const manifest = read(dir, 'out/kotlin-kit/build.gradle')
 
   t.ok(manifest.includes('namespace = "to.holepunch.echo"'))
-  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.1.1"'))
+  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.2.0"'))
 })
 
 test('kotlin harness module links the addons of a bundle on bare-kit', async (t) => {
@@ -50,6 +50,38 @@ test('kotlin harness module links the addons of a bundle on bare-kit', async (t)
   t.ok(
     read(dir, 'out/kotlin-kit/build.gradle').includes('jniLibs.directories.add("src/main/addons")')
   )
+})
+
+test('kotlin harness module offloads the addons of a bundle on the jvm', async (t) => {
+  const dir = new URL('linked/', fixtures)
+
+  const written = await build(dir, 'kotlin-kit-jvm', {
+    languageOptions: { package: 'to.holepunch.echo', platform: 'jvm' },
+    hosts: ['darwin-arm64', 'linux-x64']
+  })
+
+  const resources = 'out/kotlin-kit-jvm/src/main/resources/to/holepunch/echo/'
+
+  t.alike(written, [
+    { url: new URL('out/kotlin-kit-jvm/src/main/kotlin/to/holepunch/echo/Harness.kt', dir) },
+    { url: new URL('out/kotlin-kit-jvm/build.gradle', dir) },
+    { url: new URL(resources + 'index.bundle', dir), base: root },
+    ...['darwin-arm64', 'linux-x64'].map((host) => ({
+      url: new URL(
+        resources + `index.bundle.d/node_modules/bare-hrtime/prebuilds/${host}/bare-hrtime.bare`,
+        dir
+      )
+    })),
+    { url: new URL(resources + 'index.bundle.files', dir) }
+  ])
+
+  t.is(
+    read(dir, resources + 'index.bundle.files'),
+    '/index.bundle.d/node_modules/bare-hrtime/prebuilds/darwin-arm64/bare-hrtime.bare\n' +
+      '/index.bundle.d/node_modules/bare-hrtime/prebuilds/linux-x64/bare-hrtime.bare\n'
+  )
+
+  t.absent(read(dir, 'out/kotlin-kit-jvm/build.gradle').includes('com.android.library'))
 })
 
 test('kotlin harness module for a target without kotlin support', async (t) => {

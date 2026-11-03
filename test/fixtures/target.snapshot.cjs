@@ -495,4 +495,73 @@ suspend fun start(
 }
 `
 
+exports['harness bare-kit as kotlin on the jvm - harness - 0'] = `package com.example.core
+
+import java.io.File
+import java.nio.file.Files
+import kotlin.time.Duration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import to.holepunch.bare.kit.Ipc as WorkletIpc
+import to.holepunch.bare.kit.Worklet
+import to.holepunch.bare.stow.host.Ipc
+
+class Started(val worklet: Worklet, val ipc: Ipc)
+
+private val bundle: File by lazy {
+  val dir = Files.createTempDirectory("bare-stow").toFile()
+
+  Runtime.getRuntime().addShutdownHook(Thread { dir.deleteRecursively() })
+
+  val loader = Started::class.java.classLoader
+
+  fun open(name: String) = loader.getResourceAsStream("com/example/core" + name)!!
+
+  val listed = open("/index.bundle.files").bufferedReader().use { it.readLines() }
+
+  for (name in listOf("/index.bundle") + listed) {
+    val file = File(dir, name)
+
+    file.parentFile.mkdirs()
+
+    open(name).use { input -> file.outputStream().use { input.copyTo(it) } }
+  }
+
+  File(dir, "/index.bundle")
+}
+
+suspend fun start(
+  options: Worklet.Options = Worklet.Options(),
+  timeout: Duration? = null,
+  grace: Duration = Ipc.DEFAULT_GRACE,
+): Started {
+  val worklet = Worklet(options)
+
+  val transport = WorkletIpc(worklet)
+
+  worklet.start(withContext(Dispatchers.IO) { bundle }.path)
+
+  val ipc =
+    Ipc(
+      transport.data,
+      transport::write,
+      kill = { worklet.terminate() },
+      timeout = timeout,
+      grace = grace,
+    )
+
+  CoroutineScope(Dispatchers.Default).launch {
+    ipc.exited(worklet.wait())
+
+    transport.close()
+  }
+
+  ipc.ready()
+
+  return Started(worklet, ipc)
+}
+`
+
 /* eslint-enable */

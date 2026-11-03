@@ -126,6 +126,8 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
     artifacts.push(new URL(name + '/', bundleURL), new URL(name + '.assets', bundleURL))
   }
 
+  if (layout.listing) artifacts.push(listingURL(bundleURL))
+
   const addons = []
 
   // Targets that leave linking to the application use `link()` instead.
@@ -179,6 +181,25 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
     await fs.writeFile(artifact.url, artifact.source)
     yield { url: artifact.url }
   }
+
+  if (layout.listing) {
+    const url = listingURL(bundleURL)
+    const dir = path.posix.dirname(bundleURL.pathname)
+
+    const listing = offloaded.map(
+      (artifact) => '/' + decodeURIComponent(path.posix.relative(dir, artifact.url.pathname)) + '\n'
+    )
+
+    await fs.writeFile(url, listing.join(''))
+    yield { url }
+  }
+}
+
+// Languages that package the bundle where the runtime can't read it, such as
+// in a jar, list the files beside it, one `/<path>` per line, for the harness to
+// extract along with the bundle.
+function listingURL(bundleURL) {
+  return new URL(path.basename(bundleURL.pathname) + '.files', bundleURL)
 }
 
 function resolveBase(base, bundle) {
