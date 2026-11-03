@@ -191,6 +191,34 @@ test('stow accepts a subset of target hosts', async (t) => {
   t.alike(written.slice(4), prebuilds(dir, ['darwin-arm64']))
 })
 
+test('stow reads and resolves modules through the given functions', async (t) => {
+  const dir = new URL('basic/', fixtures)
+  const entry = new URL('virtual.js', dir)
+  const source = 'module.exports = function start() {}\n'
+
+  await artifacts(entry, new URL('out/javascript-sidecar', dir), {
+    readModule: (url) => (url.href === entry.href ? source : readModule(url)),
+    resolveModule: (url) => url
+  })
+
+  const bundle = Bundle.from(
+    fs.readFileSync(fileURLToPath(new URL('out/javascript-sidecar/index.bundle', dir)))
+  )
+
+  t.is(bundle.read('/test/fixtures/basic/virtual.js').toString(), source)
+})
+
+test('stow lists the assets of packages through the given function', async (t) => {
+  const dir = new URL('reroot/app/', fixtures)
+
+  await t.exception(
+    artifacts(new URL('core.js', dir), new URL('out/javascript-sidecar', dir), {
+      async *listPrefix() {}
+    }),
+    /ASSET_NOT_FOUND/
+  )
+})
+
 test('stow defaults base to the closest directory containing every module', async (t) => {
   const dir = new URL('reroot/app/', fixtures)
 
@@ -299,6 +327,14 @@ async function artifacts(entry, out, opts = {}) {
   }
 
   return written
+}
+
+async function readModule(url) {
+  try {
+    return await fs.promises.readFile(fileURLToPath(url))
+  } catch {
+    return null
+  }
 }
 
 function read(dir, file) {
