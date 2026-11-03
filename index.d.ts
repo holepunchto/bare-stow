@@ -302,6 +302,15 @@ interface StowOptions extends Omit<PackOptions, 'offload' | 'linked' | 'resolve'
    * @param name - The language name to resolve to a `Language`.
    */
   resolveLanguage?(name: string): Language
+  /**
+   * Read the source of the module at `url`, or `null` if there is none, such as to stow modules
+   * that aren't written to disk. Defaults to reading the file.
+   */
+  readModule?: (url: URL) => Promise<Uint8Array | string | null>
+  /** List the files under the prefix `url`. Defaults to listing the directory. */
+  listPrefix?: (url: URL) => AsyncIterable<URL>
+  /** Resolve the module at `url`. Defaults to its real path, following symbolic links. */
+  resolveModule?: (url: URL) => Promise<URL>
 }
 
 /** Options for `stow.link()`, which shape the graphs as for `stow()`. */

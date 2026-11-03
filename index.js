@@ -23,10 +23,13 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
     resolveTarget,
     resolveRPC,
     resolveLanguage,
+    readModule = fs.readModule,
+    listPrefix = fs.listPrefix,
+    resolveModule = fs.resolveModule,
     ...packOpts
   } = opts
 
-  entry = await fs.resolveModule(new URL(entry))
+  entry = await resolveModule(new URL(entry))
   out = new URL(out)
 
   if (!out.pathname.endsWith('/')) out.pathname += '/'
@@ -81,7 +84,11 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
 
   const main = shim(entry, target.isolation, server)
 
-  const readModule = graph.readModule(main.modules)
+  const hooks = {
+    readModule: graph.readModule(main.modules, readModule),
+    listPrefix,
+    resolveModule
+  }
 
   const offloaded = []
 
@@ -96,9 +103,9 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
   let bundle = await pack(
     main.url,
     { ...traversal, linked: target.linked, offload: target.offload },
-    readModule,
-    fs.listPrefix,
-    fs.resolveModule,
+    hooks.readModule,
+    hooks.listPrefix,
+    hooks.resolveModule,
     writeFile
   )
 
@@ -109,7 +116,7 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
   let unpacked = []
 
   if (target.linked) {
-    const result = await assets.unpack(bundle, base, name)
+    const result = await assets.unpack(bundle, base, name, hooks.readModule)
 
     bundle = result.bundle
 
@@ -136,7 +143,7 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
       throw new Error(`Language '${language.name}' does not support linked addons`)
     }
 
-    for await (const url of graph.link([main.url], layout.addons, traversal, readModule)) {
+    for await (const url of graph.link([main.url], layout.addons, traversal, hooks)) {
       addons.push(url)
       yield { url }
     }

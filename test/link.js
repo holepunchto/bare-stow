@@ -66,6 +66,29 @@ test('link writes a kotlin module of the addons of several graphs', async (t) =>
   t.ok(manifest.includes('jniLibs.directories.add("src/main/addons")'))
 })
 
+test('link reads and resolves modules through the given functions', async (t) => {
+  const dir = new URL('linked/', fixtures)
+  const entry = new URL('virtual.js', dir)
+
+  const written = await drain(
+    stow.link(entry, 'bare-kit', new URL('out/link-virtual', dir), {
+      language: 'kotlin',
+      languageOptions: { package: 'to.holepunch.addons' },
+      hosts: ['android-arm64'],
+      readModule: (url) => (url.href === entry.href ? "require('bare-hrtime')\n" : readModule(url)),
+      resolveModule: (url) => url
+    })
+  )
+
+  t.alike(
+    written.map(({ url }) => url.href),
+    [
+      new URL('out/link-virtual/src/main/addons/arm64-v8a/libbare-hrtime.2.1.2.so', dir).href,
+      new URL('out/link-virtual/build.gradle', dir).href
+    ]
+  )
+})
+
 test('link declares the java classes of addons for kotlin', async (t) => {
   const dir = new URL('java/', fixtures)
 
@@ -217,6 +240,14 @@ async function drain(iterator) {
   for await (const artifact of iterator) written.push(artifact)
 
   return written
+}
+
+async function readModule(url) {
+  try {
+    return await fs.promises.readFile(fileURLToPath(url))
+  } catch {
+    return null
+  }
 }
 
 function read(dir, file) {
