@@ -71,7 +71,7 @@ test('python harness package for a bundle with rpc', async (t) => {
   )
 
   t.ok(
-    [...bundle.keys()].some((key) => key.endsWith('/rpc/__server__.mjs')),
+    [...bundle.keys()].some((key) => key.endsWith('/rpc/__server__.cjs')),
     'the rpc server is packed into the bundle'
   )
 })

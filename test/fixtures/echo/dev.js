@@ -1,4 +1,4 @@
-import runtime from 'bare-stow-runtime/process'
+const runtime = require('bare-stow-runtime/process')
 
 const ipc = runtime.attach(Bare.IPC)
 
