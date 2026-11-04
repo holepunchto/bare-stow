@@ -64,7 +64,7 @@ test('language javascript writes the dependencies and module system into the man
   t.snapshot(
     javascript.manifest({
       name: 'core',
-      dependencies: { 'bare-sidecar': '^0.5.12', 'bare-stow-host': '^0.1.0' },
+      dependencies: { 'bare-sidecar': '^0.5.12', 'bare-stow-host': '^0.2.0' },
       options: { module: 'esm' },
       artifacts: ['./index.bundle', './index.bundle.d']
     })
@@ -267,7 +267,7 @@ test('language kotlin writes a jvm module manifest', (t) => {
   t.snapshot(
     kotlin.manifest({
       name: 'com.example.core',
-      dependencies: { 'com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin': 'v0.2.0' },
+      dependencies: { 'com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin': 'v0.2.1' },
       options: { package: 'com.example.core', platform: 'jvm' }
     })
   )

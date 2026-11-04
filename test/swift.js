@@ -62,7 +62,7 @@ test('swift harness package for a bundle with rpc', async (t) => {
 
   t.ok(
     manifest.includes(
-      '.package(url: "https://github.com/holepunchto/bare-rpc-swift", from: "1.1.0")'
+      '.package(url: "https://github.com/holepunchto/bare-rpc-swift", from: "2.0.0")'
     )
   )
   t.ok(manifest.includes('.product(name: "BareRPC", package: "bare-rpc-swift")'))

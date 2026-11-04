@@ -14,7 +14,7 @@ exports[
   },
   "dependencies": {
     "bare-sidecar": "^0.5.12",
-    "bare-stow-host": "^0.1.0"
+    "bare-stow-host": "^0.2.0"
   }
 }
 `
@@ -94,7 +94,7 @@ exports['language kotlin writes a jvm module manifest - should match snapshot - 
 }
 
 dependencies {
-  api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.2.0"
+  api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.2.1"
 }
 `
 

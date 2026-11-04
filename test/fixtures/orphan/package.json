@@ -16,7 +16,7 @@
   "dependencies": {
     "bare-os": "^3.0.0",
     "bare-stow": "file:../../..",
-    "bare-stow-host": "^0.1.0",
+    "bare-stow-host": "^0.2.0",
     "bare-stow-runtime": "^0.1.0"
   }
 }

@@ -132,9 +132,9 @@ test('stow declares the dependencies of the generated modules', async (t) => {
       }
     },
     dependencies: {
-      'bare-sidecar': '^0.5.12',
-      'bare-stow-host': '^0.1.0',
-      'bare-rpc': '^1.3.9'
+      'bare-sidecar': '^0.5.15',
+      'bare-stow-host': '^0.2.0',
+      'bare-rpc': '^1.5.0'
     }
   })
 })
@@ -199,6 +199,24 @@ test('stow reads and resolves modules through the given functions', async (t) =>
   await artifacts(entry, new URL('out/javascript-sidecar', dir), {
     readModule: (url) => (url.href === entry.href ? source : readModule(url)),
     resolveModule: (url) => url
+  })
+
+  const bundle = Bundle.from(
+    fs.readFileSync(fileURLToPath(new URL('out/javascript-sidecar/index.bundle', dir)))
+  )
+
+  t.is(bundle.read('/test/fixtures/basic/virtual.js').toString(), source)
+})
+
+test('stow aliases extensions as given', async (t) => {
+  const dir = new URL('basic/', fixtures)
+  const entry = new URL('virtual.mjs', dir)
+  const source = 'module.exports = function start() {}\n'
+
+  await artifacts(entry, new URL('out/javascript-sidecar', dir), {
+    readModule: (url) => (url.href === entry.href ? source : readModule(url)),
+    resolveModule: (url) => url,
+    aliases: { '.mjs': '.js' }
   })
 
   const bundle = Bundle.from(

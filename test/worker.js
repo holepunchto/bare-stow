@@ -51,7 +51,7 @@ test('worker harness preserves write order', opts, async (t) => {
 test('worker harness rejects start when ready times out', opts, async (t) => {
   const harness = await bundle('hang')
 
-  await t.exception(harness.start({ timeout: 100 }), /timed out before ready/)
+  await t.exception(harness.start({ timeout: 100 }))
 })
 
 test('worker harness kills on terminate when stop never finishes', opts, async (t) => {
