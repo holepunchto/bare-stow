@@ -10,7 +10,7 @@ const entry = new URL(`${root}/app/entry.js`)
 test('shim', (t) => {
   const { url, modules } = shim(entry, 'process')
 
-  t.is(url.href, new URL('__main__.mjs', entry).href)
+  t.is(url.href, new URL('__main__.cjs', entry).href)
   t.is(modules.size, 1)
   t.snapshot(modules.get(url.href))
 })
@@ -18,12 +18,12 @@ test('shim', (t) => {
 test('shim in a thread', (t) => {
   const { url, modules } = shim(entry, 'thread')
 
-  t.ok(modules.get(url.href).includes("import runtime from 'bare-stow-runtime'\n"))
+  t.ok(modules.get(url.href).includes("const runtime = require('bare-stow-runtime')\n"))
 })
 
 test('shim with server', (t) => {
   const { url, modules } = shim(entry, 'process', rpcs('bare-rpc'))
 
   t.snapshot(modules.get(url.href), 'main')
-  t.snapshot(modules.get(new URL('__server__.mjs', entry).href), 'server')
+  t.snapshot(modules.get(new URL('__server__.cjs', entry).href), 'server')
 })

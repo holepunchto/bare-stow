@@ -72,7 +72,7 @@ The bundle imports `bare-stow-runtime`, and the RPC library if a `server` is req
 For `bare-sidecar` and `bare-worker`, the harness also exports `connect()`, which takes a sidecar or worker that the host started itself, such as one running a development entry with arguments, and resolves like `start()`. It accepts the same options, except those of the sidecar or worker. As the entry doesn't go through `stow()`, it attaches to the IPC itself, as described in <https://github.com/holepunchto/bare-stow-runtime>:
 
 ```js
-import runtime from 'bare-stow-runtime/process'
+const runtime = require('bare-stow-runtime/process')
 
 const ipc = runtime.attach(Bare.IPC)
 
