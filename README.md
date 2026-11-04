@@ -69,6 +69,22 @@ The bundle imports `bare-stow-runtime`, and the RPC library if a `server` is req
 
 `start()` accepts `timeout`, how long to wait in milliseconds for the bundle to signal ready, and `grace`, how long a terminating bundle gets to run `stop()` and exit before it's killed. `timeout` defaults to waiting indefinitely and `grace` to 5 seconds. On Windows, a sidecar is killed along with its host, so `stop()` only runs when the host terminates it.
 
+For `bare-sidecar` and `bare-worker`, the harness also exports `connect()`, which takes a sidecar or worker that the host started itself, such as one running a development entry with arguments, and resolves like `start()`. It accepts the same options, except those of the sidecar or worker. As the entry doesn't go through `stow()`, it attaches to the IPC itself, as described in <https://github.com/holepunchto/bare-stow-runtime>:
+
+```js
+import runtime from 'bare-stow-runtime/process'
+
+const ipc = runtime.attach(Bare.IPC)
+
+ipc.run(() => import('./core.js'), ipc)
+```
+
+```js
+const sidecar = new Sidecar('./dev.js', ['--verbose'], { stdio: 'inherit' })
+
+const { ipc } = await harness.connect(sidecar)
+```
+
 `stow()` and `link()` read the module graph from disk by default. To read it from elsewhere, such as modules that aren't written to disk, pass `readModule`, `listPrefix`, and `resolveModule`. Generated files are still written to disk. A `readModule` that changes the type of a module also passes `aliases`, as for <https://github.com/holepunchto/bare-pack>, such as `{ '.mjs': '.js' }` to have ES modules converted to CommonJS loaded as such. They're merged over the aliases that `bare-stow` uses for TypeScript.
 
 ## Targets

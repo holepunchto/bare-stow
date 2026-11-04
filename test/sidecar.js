@@ -42,6 +42,23 @@ test('sidecar cjs harness echoes user data', async (t) => {
   t.is(code, 0)
 })
 
+test('sidecar harness connects to a sidecar started from another entry', async (t) => {
+  const harness = await bundle('echo')
+
+  const sidecar = new Sidecar(fileURLToPath(new URL('echo/dev.mjs', fixtures)), ['--dev'], {
+    stdio: 'inherit'
+  })
+
+  const { ipc } = await harness.connect(sidecar)
+
+  const echo = new Promise((resolve) => ipc.once('data', resolve))
+
+  ipc.write(Buffer.from('hello'))
+
+  t.alike(await echo, Buffer.from('hello'))
+  t.is(await ipc.terminate(), 0)
+})
+
 test('sidecar harness preserves write order', async (t) => {
   const harness = await bundle('echo')
   const { ipc } = await harness.start()

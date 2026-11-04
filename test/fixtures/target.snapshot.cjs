@@ -5,24 +5,31 @@ const stow = require('bare-stow-host')
 
 const bundle = require.resolve("./index.bundle")
 
-module.exports = {
-  async start({ timeout, grace, ...opts } = {}) {
-    const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
+module.exports = { start, connect }
 
-    const ipc = stow.wrap(sidecar, { kill: () => sidecar.kill('SIGKILL'), timeout, grace })
+async function start({ timeout, grace, ...opts } = {}) {
+  const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
-    sidecar.on('exit', (code, signal) => ipc.exited(code, signal))
+  return await connect(sidecar, { timeout, grace })
+}
 
-    await ipc.ready
+async function connect(sidecar, { timeout, grace } = {}) {
+  const ipc = stow.wrap(sidecar, { kill: () => sidecar.kill('SIGKILL'), timeout, grace })
 
-    return { ipc }
-  }
+  sidecar.on('exit', (code, signal) => ipc.exited(code, signal))
+
+  await ipc.ready
+
+  return { ipc }
 }
 `
 
-exports['harness bare-sidecar - types - 0'] = `export function start(
-  opts?: import('bare-sidecar').SidecarOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'>
-): Promise<{ ipc: import('bare-stow-host').IPC }>
+exports['harness bare-sidecar - types - 0'] =
+  `type ConnectOptions = Omit<import('bare-stow-host').IPCOptions, 'kill'>
+
+export function start(opts?: import('bare-sidecar').SidecarOptions & ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC }>
+
+export function connect(sidecar: import('bare-sidecar'), opts?: ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC }>
 `
 
 exports['harness bare-sidecar with client - harness - 0'] = `const Sidecar = require('bare-sidecar')
@@ -31,26 +38,33 @@ const client = require("./core.client.js")
 
 const bundle = require.resolve("./index.bundle")
 
-module.exports = {
-  async start({ timeout, grace, handlers = () => {}, ...opts } = {}) {
-    const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
+module.exports = { start, connect }
 
-    const ipc = stow.wrap(sidecar, { kill: () => sidecar.kill('SIGKILL'), timeout, grace })
+async function start({ timeout, grace, handlers, ...opts } = {}) {
+  const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
-    sidecar.on('exit', (code, signal) => ipc.exited(code, signal))
+  return await connect(sidecar, { timeout, grace, handlers })
+}
 
-    const rpc = client.attach(ipc, handlers)
+async function connect(sidecar, { timeout, grace, handlers = () => {} } = {}) {
+  const ipc = stow.wrap(sidecar, { kill: () => sidecar.kill('SIGKILL'), timeout, grace })
 
-    await ipc.ready
+  sidecar.on('exit', (code, signal) => ipc.exited(code, signal))
 
-    return { ipc, rpc }
-  }
+  const rpc = client.attach(ipc, handlers)
+
+  await ipc.ready
+
+  return { ipc, rpc }
 }
 `
 
-exports['harness bare-sidecar with client - types - 0'] = `export function start(
-  opts?: import('bare-sidecar').SidecarOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'> & { handlers?: import("./core.client.js").Handlers }
-): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.js").attach> }>
+exports['harness bare-sidecar with client - types - 0'] =
+  `type ConnectOptions = Omit<import('bare-stow-host').IPCOptions, 'kill'> & { handlers?: import("./core.client.js").Handlers }
+
+export function start(opts?: import('bare-sidecar').SidecarOptions & ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.js").attach> }>
+
+export function connect(sidecar: import('bare-sidecar'), opts?: ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.js").attach> }>
 `
 
 exports['harness bare-sidecar as esm - harness - 0'] = `import Sidecar from 'bare-sidecar'
@@ -61,6 +75,10 @@ const bundle = new URL(import.meta.resolve("./index.bundle"))
 export async function start({ timeout, grace, ...opts } = {}) {
   const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
+  return await connect(sidecar, { timeout, grace })
+}
+
+export async function connect(sidecar, { timeout, grace } = {}) {
   const ipc = stow.wrap(sidecar, { kill: () => sidecar.kill('SIGKILL'), timeout, grace })
 
   sidecar.on('exit', (code, signal) => ipc.exited(code, signal))
@@ -71,9 +89,12 @@ export async function start({ timeout, grace, ...opts } = {}) {
 }
 `
 
-exports['harness bare-sidecar as esm - types - 0'] = `export function start(
-  opts?: import('bare-sidecar').SidecarOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'>
-): Promise<{ ipc: import('bare-stow-host').IPC }>
+exports['harness bare-sidecar as esm - types - 0'] =
+  `type ConnectOptions = Omit<import('bare-stow-host').IPCOptions, 'kill'>
+
+export function start(opts?: import('bare-sidecar').SidecarOptions & ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC }>
+
+export function connect(sidecar: import('bare-sidecar'), opts?: ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC }>
 `
 
 exports['harness bare-sidecar as esm with client - harness - 0'] =
@@ -83,9 +104,13 @@ import * as client from "./core.client.mjs"
 
 const bundle = new URL(import.meta.resolve("./index.bundle"))
 
-export async function start({ timeout, grace, handlers = () => {}, ...opts } = {}) {
+export async function start({ timeout, grace, handlers, ...opts } = {}) {
   const sidecar = new Sidecar(bundle, { stdio: 'inherit', ...opts })
 
+  return await connect(sidecar, { timeout, grace, handlers })
+}
+
+export async function connect(sidecar, { timeout, grace, handlers = () => {} } = {}) {
   const ipc = stow.wrap(sidecar, { kill: () => sidecar.kill('SIGKILL'), timeout, grace })
 
   sidecar.on('exit', (code, signal) => ipc.exited(code, signal))
@@ -98,9 +123,12 @@ export async function start({ timeout, grace, handlers = () => {}, ...opts } = {
 }
 `
 
-exports['harness bare-sidecar as esm with client - types - 0'] = `export function start(
-  opts?: import('bare-sidecar').SidecarOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'> & { handlers?: import("./core.client.mjs").Handlers }
-): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.mjs").attach> }>
+exports['harness bare-sidecar as esm with client - types - 0'] =
+  `type ConnectOptions = Omit<import('bare-stow-host').IPCOptions, 'kill'> & { handlers?: import("./core.client.mjs").Handlers }
+
+export function start(opts?: import('bare-sidecar').SidecarOptions & ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.mjs").attach> }>
+
+export function connect(sidecar: import('bare-sidecar'), opts?: ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.mjs").attach> }>
 `
 
 exports['harness bare-worker - harness - 0'] = `const Worker = require('bare-worker')
@@ -108,26 +136,33 @@ const stow = require('bare-stow-host')
 
 const bundle = require.resolve("./index.bundle")
 
-module.exports = {
-  async start({ timeout, grace, ...opts } = {}) {
-    const worker = new Worker(bundle, opts)
+module.exports = { start, connect }
 
-    const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
+async function start({ timeout, grace, ...opts } = {}) {
+  const worker = new Worker(bundle, opts)
 
-    worker.IPC.on('end', () => worker.IPC.destroy())
+  return await connect(worker, { timeout, grace })
+}
 
-    worker.on('exit', (code) => ipc.exited(code))
+async function connect(worker, { timeout, grace } = {}) {
+  const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
 
-    await ipc.ready
+  worker.IPC.on('end', () => worker.IPC.destroy())
 
-    return { ipc }
-  }
+  worker.on('exit', (code) => ipc.exited(code))
+
+  await ipc.ready
+
+  return { ipc }
 }
 `
 
-exports['harness bare-worker - types - 0'] = `export function start(
-  opts?: import('bare-worker').WorkerOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'>
-): Promise<{ ipc: import('bare-stow-host').IPC }>
+exports['harness bare-worker - types - 0'] =
+  `type ConnectOptions = Omit<import('bare-stow-host').IPCOptions, 'kill'>
+
+export function start(opts?: import('bare-worker').WorkerOptions & ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC }>
+
+export function connect(worker: import('bare-worker'), opts?: ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC }>
 `
 
 exports['harness bare-worker with client - harness - 0'] = `const Worker = require('bare-worker')
@@ -136,28 +171,35 @@ const client = require("./core.client.js")
 
 const bundle = require.resolve("./index.bundle")
 
-module.exports = {
-  async start({ timeout, grace, handlers = () => {}, ...opts } = {}) {
-    const worker = new Worker(bundle, opts)
+module.exports = { start, connect }
 
-    const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
+async function start({ timeout, grace, handlers, ...opts } = {}) {
+  const worker = new Worker(bundle, opts)
 
-    worker.IPC.on('end', () => worker.IPC.destroy())
+  return await connect(worker, { timeout, grace, handlers })
+}
 
-    worker.on('exit', (code) => ipc.exited(code))
+async function connect(worker, { timeout, grace, handlers = () => {} } = {}) {
+  const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
 
-    const rpc = client.attach(ipc, handlers)
+  worker.IPC.on('end', () => worker.IPC.destroy())
 
-    await ipc.ready
+  worker.on('exit', (code) => ipc.exited(code))
 
-    return { ipc, rpc }
-  }
+  const rpc = client.attach(ipc, handlers)
+
+  await ipc.ready
+
+  return { ipc, rpc }
 }
 `
 
-exports['harness bare-worker with client - types - 0'] = `export function start(
-  opts?: import('bare-worker').WorkerOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'> & { handlers?: import("./core.client.js").Handlers }
-): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.js").attach> }>
+exports['harness bare-worker with client - types - 0'] =
+  `type ConnectOptions = Omit<import('bare-stow-host').IPCOptions, 'kill'> & { handlers?: import("./core.client.js").Handlers }
+
+export function start(opts?: import('bare-worker').WorkerOptions & ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.js").attach> }>
+
+export function connect(worker: import('bare-worker'), opts?: ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.js").attach> }>
 `
 
 exports['harness bare-worker as esm - harness - 0'] = `import Worker from 'bare-worker'
@@ -168,6 +210,10 @@ const bundle = import.meta.resolve("./index.bundle")
 export async function start({ timeout, grace, ...opts } = {}) {
   const worker = new Worker(bundle, opts)
 
+  return await connect(worker, { timeout, grace })
+}
+
+export async function connect(worker, { timeout, grace } = {}) {
   const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
 
   worker.IPC.on('end', () => worker.IPC.destroy())
@@ -180,9 +226,12 @@ export async function start({ timeout, grace, ...opts } = {}) {
 }
 `
 
-exports['harness bare-worker as esm - types - 0'] = `export function start(
-  opts?: import('bare-worker').WorkerOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'>
-): Promise<{ ipc: import('bare-stow-host').IPC }>
+exports['harness bare-worker as esm - types - 0'] =
+  `type ConnectOptions = Omit<import('bare-stow-host').IPCOptions, 'kill'>
+
+export function start(opts?: import('bare-worker').WorkerOptions & ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC }>
+
+export function connect(worker: import('bare-worker'), opts?: ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC }>
 `
 
 exports['harness bare-worker as esm with client - harness - 0'] = `import Worker from 'bare-worker'
@@ -191,9 +240,13 @@ import * as client from "./core.client.mjs"
 
 const bundle = import.meta.resolve("./index.bundle")
 
-export async function start({ timeout, grace, handlers = () => {}, ...opts } = {}) {
+export async function start({ timeout, grace, handlers, ...opts } = {}) {
   const worker = new Worker(bundle, opts)
 
+  return await connect(worker, { timeout, grace, handlers })
+}
+
+export async function connect(worker, { timeout, grace, handlers = () => {} } = {}) {
   const ipc = stow.wrap(worker.IPC, { kill: () => worker.terminate(), timeout, grace })
 
   worker.IPC.on('end', () => worker.IPC.destroy())
@@ -208,16 +261,19 @@ export async function start({ timeout, grace, handlers = () => {}, ...opts } = {
 }
 `
 
-exports['harness bare-worker as esm with client - types - 0'] = `export function start(
-  opts?: import('bare-worker').WorkerOptions & Omit<import('bare-stow-host').IPCOptions, 'kill'> & { handlers?: import("./core.client.mjs").Handlers }
-): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.mjs").attach> }>
+exports['harness bare-worker as esm with client - types - 0'] =
+  `type ConnectOptions = Omit<import('bare-stow-host').IPCOptions, 'kill'> & { handlers?: import("./core.client.mjs").Handlers }
+
+export function start(opts?: import('bare-worker').WorkerOptions & ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.mjs").attach> }>
+
+export function connect(worker: import('bare-worker'), opts?: ConnectOptions): Promise<{ ipc: import('bare-stow-host').IPC; rpc: ReturnType<typeof import("./core.client.mjs").attach> }>
 `
 
 exports['harness bare-sidecar as python - harness - 0'] = `import asyncio
 from pathlib import Path
 from typing import NamedTuple
 
-from bare_sidecar import spawn
+from bare_sidecar import Sidecar, spawn
 from bare_stow_host import DEFAULT_GRACE, IPC, wrap
 
 bundle = Path(__file__).parent / "index.bundle"
@@ -237,6 +293,15 @@ async def start(
 ) -> Started:
     sidecar = await spawn(bundle, **opts)
 
+    return await connect(sidecar, timeout=timeout, grace=grace)
+
+
+async def connect(
+    sidecar: Sidecar,
+    *,
+    timeout=None,
+    grace=DEFAULT_GRACE,
+) -> Started:
     ipc = wrap(sidecar, kill=sidecar.kill, timeout=timeout, grace=grace)
 
     watching = asyncio.ensure_future(_watch(sidecar, ipc))
@@ -261,7 +326,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from bare_rpc import RPC
-from bare_sidecar import spawn
+from bare_sidecar import Sidecar, spawn
 from bare_stow_host import DEFAULT_GRACE, IPC, wrap
 
 from .client import Handlers, attach
@@ -285,6 +350,16 @@ async def start(
 ) -> Started:
     sidecar = await spawn(bundle, **opts)
 
+    return await connect(sidecar, timeout=timeout, grace=grace, handlers=handlers)
+
+
+async def connect(
+    sidecar: Sidecar,
+    *,
+    timeout=None,
+    grace=DEFAULT_GRACE,
+    handlers: Handlers = lambda router: None,
+) -> Started:
     ipc = wrap(sidecar, kill=sidecar.kill, timeout=timeout, grace=grace)
 
     watching = asyncio.ensure_future(_watch(sidecar, ipc))
@@ -324,6 +399,14 @@ public func start(
 
   let sidecar = try await Sidecar.spawn(bundle)
 
+  return try await connect(sidecar, timeout: timeout, grace: grace)
+}
+
+public func connect(
+  _ sidecar: Sidecar,
+  timeout: TimeInterval? = nil,
+  grace: TimeInterval = BareStowHost.IPC.defaultGrace
+) async throws -> Started {
   let ipc = BareStowHost.IPC(sidecar, kill: { sidecar.kill() }, timeout: timeout, grace: grace)
 
   Task {
@@ -360,6 +443,15 @@ public func start(
 
   let sidecar = try await Sidecar.spawn(bundle)
 
+  return try await connect(sidecar, timeout: timeout, grace: grace, handlers: handlers)
+}
+
+public func connect(
+  _ sidecar: Sidecar,
+  timeout: TimeInterval? = nil,
+  grace: TimeInterval = BareStowHost.IPC.defaultGrace,
+  handlers: Handlers? = nil
+) async throws -> Started {
   let ipc = BareStowHost.IPC(sidecar, kill: { sidecar.kill() }, timeout: timeout, grace: grace)
 
   Task {
