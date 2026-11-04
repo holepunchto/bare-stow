@@ -34,8 +34,8 @@ test('python harness package for a bundle without rpc', async (t) => {
   const manifest = read(dir, 'out/python-sidecar/pyproject.toml')
 
   t.ok(manifest.includes('name = "python_sidecar"'))
-  t.ok(manifest.includes('"bare-sidecar~=0.1.0"'))
-  t.ok(manifest.includes('"bare-stow-host~=0.1.0"'))
+  t.ok(manifest.includes('"bare-sidecar~=0.1.3"'))
+  t.ok(manifest.includes('"bare-stow-host~=0.2.0"'))
   t.absent(manifest.includes('bare-rpc'))
 })
 
@@ -56,7 +56,7 @@ test('python harness package for a bundle with rpc', async (t) => {
 
   t.ok(
     read(dir, 'out/python-sidecar/python_sidecar/__init__.py').includes(
-      'from .client import Client, Handlers, attach'
+      'from .client import Handlers, attach'
     )
   )
   t.ok(
@@ -64,7 +64,7 @@ test('python harness package for a bundle with rpc', async (t) => {
       'from bare_rpc import RPC, CommandRouter'
     )
   )
-  t.ok(read(dir, 'out/python-sidecar/pyproject.toml').includes('"bare-rpc~=0.1.0"'))
+  t.ok(read(dir, 'out/python-sidecar/pyproject.toml').includes('"bare-rpc~=0.2.0"'))
 
   const bundle = Bundle.from(
     fs.readFileSync(fileURLToPath(new URL('out/python-sidecar/python_sidecar/index.bundle', dir)))

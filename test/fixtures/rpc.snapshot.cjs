@@ -55,21 +55,15 @@ exports['rpc bare-rpc client as python - source - 0'] = `from collections.abc im
 from bare_rpc import RPC, CommandRouter
 from bare_stow_host import IPC
 
-Client = RPC
-
 Handlers = Callable[[CommandRouter], None]
 
 
-def attach(ipc: IPC, handlers: Handlers) -> Client:
+def attach(ipc: IPC, handlers: Handlers) -> RPC:
     router = CommandRouter()
 
     handlers(router)
 
-    return RPC(
-        ipc,
-        on_request=router.dispatch_request,
-        on_event=router.dispatch_event,
-    )
+    return RPC(ipc, handler=router)
 `
 
 exports['rpc bare-rpc client as kotlin - source - 0'] = `package com.example.core
@@ -78,21 +72,18 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import to.holepunch.bare.rpc.CommandRouter
 import to.holepunch.bare.rpc.Rpc
+import to.holepunch.bare.rpc.Transport
 import to.holepunch.bare.stow.host.Ipc
-
-typealias Client = Rpc
 
 typealias Handlers = CommandRouter.() -> Unit
 
-internal fun attach(ipc: Ipc, handlers: Handlers): Client {
+internal fun attach(ipc: Ipc, handlers: Handlers): Rpc {
   val router = CommandRouter().apply(handlers)
 
   return Rpc(
-    ipc.data,
-    ipc::write,
+    Transport(ipc.data, ipc::write, ipc::close),
     CoroutineScope(Dispatchers.Default),
-    onEvent = router::dispatch,
-    onRequest = router::dispatch,
+    router,
   )
 }
 `
@@ -101,80 +92,16 @@ exports['rpc bare-rpc client as swift - source - 0'] = `import BareRPC
 import BareStowHost
 import Foundation
 
-public final class Client: @unchecked Sendable {
-  public let rpc: RPC
-
-  private let delegate: Delegate
-
-  fileprivate init(rpc: RPC, delegate: Delegate) {
-    self.rpc = rpc
-    self.delegate = delegate
-  }
-
-  public func request(_ command: UInt, data: Data? = nil) async throws -> Data? {
-    try await rpc.request(command, data: data)
-  }
-
-  public func event(_ command: UInt, data: Data? = nil) async {
-    await rpc.event(command, data: data)
-  }
-}
-
 public typealias Handlers = (CommandRouter) -> Void
 
-func attach(_ ipc: IPC, _ handlers: Handlers?) -> Client {
+extension BareStowHost.IPC: @retroactive BareRPC.Transport {}
+
+func attach(_ ipc: IPC, _ handlers: Handlers?) -> RPC {
   let router = CommandRouter()
 
   handlers?(router)
 
-  let delegate = Delegate(router: router)
-  let rpc = RPC(delegate: delegate)
-
-  Task {
-    for await frame in delegate.frames {
-      try? await ipc.write(frame)
-    }
-  }
-
-  Task {
-    do {
-      for try await data in ipc {
-        await rpc.receive(data)
-      }
-    } catch {}
-
-    delegate.finish()
-  }
-
-  return Client(rpc: rpc, delegate: delegate)
-}
-
-private final class Delegate: RPCDelegate, @unchecked Sendable {
-  let router: CommandRouter
-  let frames: AsyncStream<Data>
-
-  private let continuation: AsyncStream<Data>.Continuation
-
-  init(router: CommandRouter) {
-    self.router = router
-    (frames, continuation) = AsyncStream.makeStream()
-  }
-
-  func rpc(_ rpc: RPC, send data: Data) {
-    continuation.yield(data)
-  }
-
-  func rpc(_ rpc: RPC, didReceiveRequest request: IncomingRequest) async throws {
-    await router.dispatch(request)
-  }
-
-  func rpc(_ rpc: RPC, didReceiveEvent event: IncomingEvent) async {
-    await router.dispatch(event)
-  }
-
-  func finish() {
-    continuation.finish()
-  }
+  return RPC(ipc, handler: router)
 }
 `
 

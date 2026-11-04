@@ -276,7 +276,7 @@ interface RPC {
 }
 
 /** Options for `stow()`. */
-interface StowOptions extends Omit<PackOptions, 'offload' | 'linked' | 'resolve' | 'aliases'> {
+interface StowOptions extends Omit<PackOptions, 'offload' | 'linked' | 'resolve'> {
   /** The language of the harness (or its name). Defaults to `javascript`. */
   language?: Language | LanguageName
   /** The options given to the language, such as `{ module: 'cjs' }` for `javascript`. */

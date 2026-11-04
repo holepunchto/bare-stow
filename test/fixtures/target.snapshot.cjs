@@ -260,10 +260,11 @@ exports['harness bare-sidecar as python with client - harness - 0'] = `import as
 from pathlib import Path
 from typing import NamedTuple
 
+from bare_rpc import RPC
 from bare_sidecar import spawn
 from bare_stow_host import DEFAULT_GRACE, IPC, wrap
 
-from .client import Client, Handlers, attach
+from .client import Handlers, attach
 
 bundle = Path(__file__).parent / "index.bundle"
 
@@ -272,7 +273,7 @@ _watching = set()
 
 class Started(NamedTuple):
     ipc: IPC
-    rpc: Client
+    rpc: RPC
 
 
 async def start(
@@ -309,7 +310,7 @@ exports['harness bare-sidecar as swift - harness - 0'] = `import BareSidecar
 import BareStowHost
 import Foundation
 
-extension Sidecar: @retroactive Transport {}
+extension Sidecar: @retroactive BareStowHost.Transport {}
 
 public struct Started: Sendable {
   public let ipc: BareStowHost.IPC
@@ -339,14 +340,15 @@ public func start(
 `
 
 exports['harness bare-sidecar as swift with client - harness - 0'] = `import BareSidecar
+import BareRPC
 import BareStowHost
 import Foundation
 
-extension Sidecar: @retroactive Transport {}
+extension Sidecar: @retroactive BareStowHost.Transport {}
 
 public struct Started: Sendable {
   public let ipc: BareStowHost.IPC
-  public let rpc: Client
+  public let rpc: RPC
 }
 
 public func start(
@@ -379,7 +381,7 @@ exports['harness bare-kit as swift - harness - 0'] = `import BareKit
 import BareStowHost
 import Foundation
 
-extension BareKit.IPC: @retroactive Transport {}
+extension BareKit.IPC: @retroactive BareStowHost.Transport {}
 
 public struct Started: Sendable {
   public let worklet: Worklet
@@ -411,15 +413,16 @@ public func start(
 `
 
 exports['harness bare-kit as swift with client - harness - 0'] = `import BareKit
+import BareRPC
 import BareStowHost
 import Foundation
 
-extension BareKit.IPC: @retroactive Transport {}
+extension BareKit.IPC: @retroactive BareStowHost.Transport {}
 
 public struct Started: Sendable {
   public let worklet: Worklet
   public let ipc: BareStowHost.IPC
-  public let rpc: Client
+  public let rpc: RPC
 }
 
 public func start(
@@ -470,9 +473,21 @@ suspend fun start(
 ): Started {
   val worklet = Worklet(context, options)
 
-  val transport = WorkletIpc(worklet)
+  val transport =
+    try {
+      WorkletIpc(worklet)
+    } catch (error: Throwable) {
+      worklet.close()
+      throw error
+    }
 
-  worklet.start("com/example/core/index.bundle")
+  try {
+    worklet.start("com/example/core/index.bundle")
+  } catch (error: Throwable) {
+    transport.close()
+    worklet.close()
+    throw error
+  }
 
   val ipc =
     Ipc(
@@ -487,6 +502,7 @@ suspend fun start(
     ipc.exited(worklet.wait())
 
     transport.close()
+    worklet.close()
   }
 
   ipc.ready()
@@ -539,9 +555,21 @@ suspend fun start(
 ): Started {
   val worklet = Worklet(options)
 
-  val transport = WorkletIpc(worklet)
+  val transport =
+    try {
+      WorkletIpc(worklet)
+    } catch (error: Throwable) {
+      worklet.close()
+      throw error
+    }
 
-  worklet.start(withContext(Dispatchers.IO) { bundle }.path)
+  try {
+    worklet.start(withContext(Dispatchers.IO) { bundle }.path)
+  } catch (error: Throwable) {
+    transport.close()
+    worklet.close()
+    throw error
+  }
 
   val ipc =
     Ipc(
@@ -556,6 +584,7 @@ suspend fun start(
     ipc.exited(worklet.wait())
 
     transport.close()
+    worklet.close()
   }
 
   ipc.ready()
