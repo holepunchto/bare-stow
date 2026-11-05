@@ -41,7 +41,7 @@ test('harness bare-sidecar as python', (t) => {
   })
 
   t.snapshot(source, 'harness')
-  t.alike(dependencies, { 'bare-sidecar': '~=0.1.3', 'bare-stow-host': '~=0.2.0' })
+  t.alike(dependencies, { 'bare-sidecar': '~=0.1.3', 'bare-stow-host': '~=0.2.1' })
 })
 
 test('harness bare-sidecar as python with client', (t) => {

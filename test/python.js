@@ -35,7 +35,7 @@ test('python harness package for a bundle without rpc', async (t) => {
 
   t.ok(manifest.includes('name = "python_sidecar"'))
   t.ok(manifest.includes('"bare-sidecar~=0.1.3"'))
-  t.ok(manifest.includes('"bare-stow-host~=0.2.0"'))
+  t.ok(manifest.includes('"bare-stow-host~=0.2.1"'))
   t.absent(manifest.includes('bare-rpc'))
 })
 
