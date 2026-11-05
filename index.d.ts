@@ -370,7 +370,7 @@ declare namespace stow {
    * @throws The language does not support linked addons or assets.
    * @throws Two different assets would link to the same path.
    */
-  function link(
+  export function link(
     entries: URL | string | (URL | string)[],
     target: Target | TargetName,
     out: URL | string,
@@ -381,7 +381,7 @@ declare namespace stow {
    * The name of the folder that `stow.link()` writes the assets of the application to, which a Swift
    * application copies into its bundle.
    */
-  const resources: string
+  export const resources: string
 
   export {
     type Generated,
