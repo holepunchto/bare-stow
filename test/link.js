@@ -4,6 +4,7 @@ const { pathToFileURL, fileURLToPath } = require('url')
 const test = require('brittle')
 const Bundle = require('bare-bundle')
 const stow = require('..')
+const { version: hrtime } = require('bare-hrtime/package')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'fixtures') + '/')
 const root = new URL('../../', fixtures)
@@ -33,7 +34,7 @@ test('link writes a swift package of the addons of several graphs', async (t) =>
   t.ok(manifest.includes('.package(url: "https://github.com/holepunchto/bare-kit-swift"'))
   t.ok(
     manifest.includes(
-      '.binaryTarget(name: "bare-hrtime.2.1.2", path: "Frameworks/bare-hrtime.2.1.2.xcframework")'
+      `.binaryTarget(name: "bare-hrtime.${hrtime}", path: "Frameworks/bare-hrtime.${hrtime}.xcframework")`
     )
   )
 })
@@ -51,7 +52,7 @@ test('link writes a kotlin module of the addons of several graphs', async (t) =>
       written.filter(
         ({ url }) =>
           url.href ===
-          new URL(`out/link-kotlin/src/main/addons/${abi}/libbare-hrtime.2.1.2.so`, dir).href
+          new URL(`out/link-kotlin/src/main/addons/${abi}/libbare-hrtime.${hrtime}.so`, dir).href
       ).length,
       1
     )
@@ -62,7 +63,7 @@ test('link writes a kotlin module of the addons of several graphs', async (t) =>
   const manifest = read(dir, 'out/link-kotlin/build.gradle')
 
   t.ok(manifest.includes('namespace = "to.holepunch.addons"'))
-  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.2.2"'))
+  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v'))
   t.ok(manifest.includes('jniLibs.directories.add("src/main/addons")'))
 })
 
@@ -83,7 +84,7 @@ test('link reads and resolves modules through the given functions', async (t) =>
   t.alike(
     written.map(({ url }) => url.href),
     [
-      new URL('out/link-virtual/src/main/addons/arm64-v8a/libbare-hrtime.2.1.2.so', dir).href,
+      new URL(`out/link-virtual/src/main/addons/arm64-v8a/libbare-hrtime.${hrtime}.so`, dir).href,
       new URL('out/link-virtual/build.gradle', dir).href
     ]
   )

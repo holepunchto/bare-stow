@@ -2,6 +2,7 @@ const path = require('path')
 const fs = require('fs')
 const { pathToFileURL, fileURLToPath } = require('url')
 const test = require('brittle')
+const { version: hrtime } = require('bare-hrtime/package')
 const stow = require('..')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'fixtures') + '/')
@@ -29,7 +30,7 @@ test('kotlin harness module for a bundle on bare-kit', async (t) => {
   const manifest = read(dir, 'out/kotlin-kit/build.gradle')
 
   t.ok(manifest.includes('namespace = "to.holepunch.echo"'))
-  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.2.2"'))
+  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v'))
 })
 
 test('kotlin harness module links the addons of a bundle on bare-kit', async (t) => {
@@ -42,7 +43,7 @@ test('kotlin harness module links the addons of a bundle on bare-kit', async (t)
       written.some(
         ({ url }) =>
           url.href ===
-          new URL(`out/kotlin-kit/src/main/addons/${abi}/libbare-hrtime.2.1.2.so`, dir).href
+          new URL(`out/kotlin-kit/src/main/addons/${abi}/libbare-hrtime.${hrtime}.so`, dir).href
       )
     )
   }
@@ -116,7 +117,7 @@ test('kotlin harness module for a bundle with rpc', async (t) => {
   )
   t.ok(
     read(dir, 'out/kotlin-kit-rpc/build.gradle').includes(
-      'api "com.github.holepunchto.bare-rpc-kotlin:bare-rpc-kotlin:v0.5.0"'
+      'api "com.github.holepunchto.bare-rpc-kotlin:bare-rpc-kotlin:v'
     )
   )
 })

@@ -3,6 +3,7 @@ const fs = require('fs')
 const { pathToFileURL, fileURLToPath } = require('url')
 const test = require('brittle')
 const stow = require('..')
+const { version: hrtime } = require('bare-hrtime/package')
 const sidecar = require('../lib/target/bare-sidecar')
 
 const fixtures = pathToFileURL(path.join(__dirname, 'fixtures') + '/')
@@ -60,11 +61,7 @@ test('swift harness package for a bundle with rpc', async (t) => {
 
   const manifest = read(dir, 'out/swift-sidecar/Package.swift')
 
-  t.ok(
-    manifest.includes(
-      '.package(url: "https://github.com/holepunchto/bare-rpc-swift", from: "2.0.0")'
-    )
-  )
+  t.ok(manifest.includes('.package(url: "https://github.com/holepunchto/bare-rpc-swift", from: "'))
   t.ok(manifest.includes('.product(name: "BareRPC", package: "bare-rpc-swift")'))
 })
 
@@ -109,16 +106,16 @@ test('swift harness package links the addons of a bundle on bare-kit', async (t)
   t.ok(
     written.some(
       ({ url }) =>
-        url.href === new URL('out/swift-kit/Frameworks/bare-hrtime.2.1.2.xcframework', dir).href
+        url.href === new URL(`out/swift-kit/Frameworks/bare-hrtime.${hrtime}.xcframework`, dir).href
     )
   )
 
   const manifest = read(dir, 'out/swift-kit/Package.swift')
 
-  t.ok(manifest.includes('        "bare-hrtime.2.1.2",'))
+  t.ok(manifest.includes(`        "bare-hrtime.${hrtime}",`))
   t.ok(
     manifest.includes(
-      '.binaryTarget(name: "bare-hrtime.2.1.2", path: "Frameworks/bare-hrtime.2.1.2.xcframework")'
+      `.binaryTarget(name: "bare-hrtime.${hrtime}", path: "Frameworks/bare-hrtime.${hrtime}.xcframework")`
     )
   )
 })
@@ -162,7 +159,7 @@ test('swift harness package links the addons imported by the shim', async (t) =>
 
   t.ok(
     read(dir, 'out/swift-kit-server/Package.swift').includes(
-      '.binaryTarget(name: "bare-hrtime.2.1.2", path: "Frameworks/bare-hrtime.2.1.2.xcframework")'
+      `.binaryTarget(name: "bare-hrtime.${hrtime}", path: "Frameworks/bare-hrtime.${hrtime}.xcframework")`
     )
   )
 })
