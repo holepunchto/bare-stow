@@ -29,7 +29,7 @@ test('kotlin harness module for a bundle on bare-kit', async (t) => {
   const manifest = read(dir, 'out/kotlin-kit/build.gradle')
 
   t.ok(manifest.includes('namespace = "to.holepunch.echo"'))
-  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.2.3"'))
+  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v0.2.2"'))
 })
 
 test('kotlin harness module links the addons of a bundle on bare-kit', async (t) => {
