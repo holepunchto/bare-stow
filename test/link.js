@@ -39,6 +39,21 @@ test('link writes a swift package of the addons of several graphs', async (t) =>
   )
 })
 
+test('link writes a swift package of the addons for the engine', async (t) => {
+  const dir = new URL('linked/', fixtures)
+
+  await link(dir, 'bare-kit', 'out/link-swift-javascriptcore/BareKitAddons', {
+    language: 'swift',
+    targetOptions: { engine: 'javascriptcore' }
+  })
+
+  t.ok(
+    read(dir, 'out/link-swift-javascriptcore/BareKitAddons/Package.swift').includes(
+      'traits: ["JavaScriptCore"]'
+    )
+  )
+})
+
 test('link writes a kotlin module of the addons of several graphs', async (t) => {
   const dir = new URL('linked/', fixtures)
 

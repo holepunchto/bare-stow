@@ -47,6 +47,7 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
 
   target = resolved.target
   language = resolved.language
+  targetOptions = resolved.targetOptions
   hosts = resolved.hosts
 
   if (client) client = select('RPC library', rpcs(client, resolveRPC), language.name)
@@ -75,7 +76,8 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
         bundle: language.reference(layout.harness, bundleURL),
         client: client && language.reference(layout.harness, client.url),
         resources,
-        options
+        options,
+        targetOptions
       })
     }
   ]

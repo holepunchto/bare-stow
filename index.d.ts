@@ -143,12 +143,16 @@ interface TargetContext<O extends LanguageOptions = LanguageOptions> {
   resources: string | null
   /** The options resolved by the language, with any pinned by the target applied. */
   options: O
+  /** The options resolved by the target. */
+  targetOptions: TargetOptions
 }
 
 /** The context passed to a target language's `link()`. */
 interface TargetLinkContext<O extends LanguageOptions = LanguageOptions> {
   /** The options resolved by the language, with any pinned by the target applied. */
   options: O
+  /** The options resolved by the target. */
+  targetOptions: TargetOptions
 }
 
 /** The module and dependencies of a package of linked addons. */

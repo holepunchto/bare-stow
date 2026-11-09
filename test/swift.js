@@ -96,6 +96,34 @@ test('swift harness package for a bundle on bare-kit', async (t) => {
   t.ok(manifest.includes('platforms: [.macOS(.v13), .iOS(.v15)]'))
   t.ok(manifest.includes('.product(name: "BareKit", package: "bare-kit-swift")'))
   t.ok(manifest.includes('resources: [.copy("index.bundle")]'))
+  t.absent(manifest.includes('traits:'))
+})
+
+test('swift harness package for a bundle on bare-kit with javascriptcore', async (t) => {
+  const dir = new URL('echo/', fixtures)
+
+  await build(dir, 'swift-kit-javascriptcore', {
+    target: 'bare-kit',
+    targetOptions: { engine: 'javascriptcore' }
+  })
+
+  const manifest = read(dir, 'out/swift-kit-javascriptcore/Package.swift')
+
+  t.ok(manifest.startsWith('// swift-tools-version: 6.1\n'))
+  t.ok(
+    manifest.includes(
+      '.package(url: "https://github.com/holepunchto/bare-kit-swift", from: "2.3.0", traits: ["JavaScriptCore"]),'
+    )
+  )
+})
+
+test('swift harness package rejects an engine of another language', async (t) => {
+  const dir = new URL('echo/', fixtures)
+
+  await t.exception(
+    build(dir, 'swift-kit-quickjs', { target: 'bare-kit', targetOptions: { engine: 'quickjs' } }),
+    /Option 'engine' must be 'v8' or 'javascriptcore' for language 'swift', got 'quickjs'/
+  )
 })
 
 test('swift harness package links the addons of a bundle on bare-kit', async (t) => {
