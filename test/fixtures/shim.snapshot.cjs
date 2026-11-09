@@ -17,11 +17,12 @@ const rpc = server.attach(ipc)
 ipc.run(() => import("./entry.js"), { rpc, ipc })
 `
 
-exports['shim with server - server - 0'] = `const RPC = require('bare-rpc')
+exports['shim with server - server - 0'] = `const AbortController = require('bare-abort-controller')
+const RPC = require('bare-rpc')
 
 exports.attach = function attach(ipc) {
   const router = new RPC.CommandRouter()
-  const rpc = new RPC(ipc, router)
+  const rpc = new RPC(ipc, router, { AbortController })
 
   rpc.respond = router.respond.bind(router)
 

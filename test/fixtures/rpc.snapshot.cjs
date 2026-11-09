@@ -1,13 +1,15 @@
 /* eslint-disable */
 
-exports['rpc bare-rpc client - source - 0'] = `const RPC = require('bare-rpc')
+exports['rpc bare-rpc client - source - 0'] =
+  `const AbortController = require('bare-abort-controller')
+const RPC = require('bare-rpc')
 
 exports.attach = function attach(ipc, handlers) {
   const router = new RPC.CommandRouter()
 
   handlers(router)
 
-  return new RPC(ipc, router)
+  return new RPC(ipc, router, { AbortController })
 }
 `
 
@@ -17,14 +19,16 @@ exports['rpc bare-rpc client - types - 0'] =
 export function attach(ipc: import('bare-stow-host').IPC, handlers: Handlers): import('bare-rpc')
 `
 
-exports['rpc bare-rpc client as esm - source - 0'] = `import RPC from 'bare-rpc'
+exports['rpc bare-rpc client as esm - source - 0'] =
+  `import AbortController from 'bare-abort-controller'
+import RPC from 'bare-rpc'
 
 export function attach(ipc, handlers) {
   const router = new RPC.CommandRouter()
 
   handlers(router)
 
-  return new RPC(ipc, router)
+  return new RPC(ipc, router, { AbortController })
 }
 `
 
@@ -34,11 +38,12 @@ exports['rpc bare-rpc client as esm - types - 0'] =
 export function attach(ipc: import('bare-stow-host').IPC, handlers: Handlers): import('bare-rpc')
 `
 
-exports['rpc bare-rpc server - source - 0'] = `import RPC from 'bare-rpc'
+exports['rpc bare-rpc server - source - 0'] = `import AbortController from 'bare-abort-controller'
+import RPC from 'bare-rpc'
 
 export function attach(ipc) {
   const router = new RPC.CommandRouter()
-  const rpc = new RPC(ipc, router)
+  const rpc = new RPC(ipc, router, { AbortController })
 
   rpc.respond = router.respond.bind(router)
 
