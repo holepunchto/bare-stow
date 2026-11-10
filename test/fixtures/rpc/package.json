@@ -14,7 +14,8 @@
     }
   },
   "dependencies": {
-    "bare-rpc": "^1.5.0",
+    "bare-abort-controller": "^1.1.2",
+    "bare-rpc": "^2.0.0",
     "bare-stow": "file:../../..",
     "bare-stow-host": "^0.2.0",
     "bare-stow-runtime": "^0.1.0"
