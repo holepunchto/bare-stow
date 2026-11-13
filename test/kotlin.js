@@ -33,6 +33,17 @@ test('kotlin harness module for a bundle on bare-kit', async (t) => {
   t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin:v'))
 })
 
+test('kotlin harness module for a bundle on bare-kit with quickjs', async (t) => {
+  const dir = new URL('echo/', fixtures)
+
+  await build(dir, 'kotlin-kit-quickjs', { targetOptions: { engine: 'quickjs' } })
+
+  const manifest = read(dir, 'out/kotlin-kit-quickjs/build.gradle')
+
+  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin-quickjs:v'))
+  t.absent(manifest.includes('bare-kit-kotlin:bare-kit-kotlin:'))
+})
+
 test('kotlin harness module links the addons of a bundle on bare-kit', async (t) => {
   const dir = new URL('linked/', fixtures)
 
