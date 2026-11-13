@@ -286,6 +286,27 @@ test('sidecar harness round-trips rpc requests', async (t) => {
   await ipc.terminate()
 })
 
+test('sidecar harness passes the cancel of an rpc request to the handler', async (t) => {
+  const harness = await bundle('rpc', { client: 'bare-rpc', server: 'bare-rpc' })
+
+  let handlers
+  const cancelled = new Promise((resolve) => {
+    handlers = (router) => router.respond(2, (req, data) => resolve(data.toString()))
+  })
+
+  const { ipc, rpc } = await harness.start({ handlers })
+
+  const req = rpc.request(2)
+
+  req.send()
+  req.cancel()
+
+  await t.exception(req.reply(), { code: 'CANCELLED' })
+  t.is(await cancelled, 'CANCELLED')
+
+  await ipc.terminate()
+})
+
 async function build(name, opts, pkg = 'javascript-sidecar') {
   const dir = new URL(name + '/', fixtures)
   const entry = new URL('core.js', dir)

@@ -65,7 +65,7 @@ ipc.write(Buffer.from('hello from the host'))
 const code = await ipc.terminate()
 ```
 
-The bundle imports `bare-stow-runtime`, and the RPC library if a `server` is requested, so the package containing the entry must depend on them.
+The bundle imports `bare-stow-runtime`, and the RPC library if a `server` is requested, so the package containing the entry must depend on them. For `bare-rpc`, that is `bare-rpc` and `bare-abort-controller`, which gives handlers the `signal` that aborts when the peer cancels a request.
 
 `start()` accepts `timeout`, how long to wait in milliseconds for the bundle to signal ready, and `grace`, how long a terminating bundle gets to run `stop()` and exit before it's killed. `timeout` defaults to waiting indefinitely and `grace` to 5 seconds. On Windows, a sidecar is killed along with its host, so `stop()` only runs when the host terminates it.
 
