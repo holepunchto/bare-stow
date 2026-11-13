@@ -70,7 +70,7 @@
     "bare-rpc": "^1.5.0",
     "bare-sidecar": "^0.5.15",
     "bare-stow-host": "^0.2.0",
-    "bare-stow-runtime": "^0.1.0",
+    "bare-stow-runtime": "^0.1.2",
     "bare-worker": "^4.5.3",
     "brittle": "^4.5.0",
     "lunte": "^1.8.6",

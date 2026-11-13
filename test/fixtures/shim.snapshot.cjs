@@ -4,7 +4,7 @@ exports['shim - should match snapshot - 0'] = `const runtime = require('bare-sto
 
 const ipc = runtime.attach(Bare.IPC)
 
-ipc.run(() => import("./entry.js"), ipc)
+ipc.run(() => require("./entry.js"), ipc)
 `
 
 exports['shim with server - main - 0'] = `const runtime = require('bare-stow-runtime/process')
@@ -14,7 +14,7 @@ const ipc = runtime.attach(Bare.IPC)
 
 const rpc = server.attach(ipc)
 
-ipc.run(() => import("./entry.js"), { rpc, ipc })
+ipc.run(() => require("./entry.js"), { rpc, ipc })
 `
 
 exports['shim with server - server - 0'] = `const AbortController = require('bare-abort-controller')
