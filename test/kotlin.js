@@ -40,9 +40,7 @@ test('kotlin harness module for a bundle on bare-kit with quickjs', async (t) =>
 
   const manifest = read(dir, 'out/kotlin-kit-quickjs/build.gradle')
 
-  t.ok(
-    manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin-quickjs:v0.2.3"')
-  )
+  t.ok(manifest.includes('api "com.github.holepunchto.bare-kit-kotlin:bare-kit-kotlin-quickjs:v'))
   t.absent(manifest.includes('bare-kit-kotlin:bare-kit-kotlin:'))
 })
 

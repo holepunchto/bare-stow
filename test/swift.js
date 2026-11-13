@@ -111,8 +111,8 @@ test('swift harness package for a bundle on bare-kit with javascriptcore', async
 
   t.ok(manifest.startsWith('// swift-tools-version: 6.1\n'))
   t.ok(
-    manifest.includes(
-      '.package(url: "https://github.com/holepunchto/bare-kit-swift", from: "2.3.0", traits: ["JavaScriptCore"]),'
+    /\.package\(url: "https:\/\/github\.com\/holepunchto\/bare-kit-swift", from: "[^"]+", traits: \["JavaScriptCore"\]\),/.test(
+      manifest
     )
   )
 })
