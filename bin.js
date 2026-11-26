@@ -133,15 +133,34 @@ function common(flags) {
   }
 }
 
+// Dotted keys set nested options. The objects have no prototype, so that keys
+// such as `__proto__` and `constructor` are plain options.
 function keyValues(name, options = []) {
-  const result = {}
+  const result = Object.create(null)
 
   for (const option of options) {
     const i = option.indexOf('=')
 
     if (i === -1) throw new Error(`${name} must be <key>=<value>, got '${option}'`)
 
-    result[option.slice(0, i)] = option.slice(i + 1)
+    const path = option.slice(0, i).split('.')
+
+    if (path.includes('')) throw new Error(`${name} has an empty key, got '${option}'`)
+
+    const key = path.pop()
+
+    let object = result
+
+    for (const part of path) {
+      object[part] ??= Object.create(null)
+      object = object[part]
+
+      if (typeof object !== 'object') throw new Error(`${name} sets '${part}' more than once`)
+    }
+
+    if (typeof object[key] === 'object') throw new Error(`${name} sets '${key}' more than once`)
+
+    object[key] = option.slice(i + 1)
   }
 
   return result
