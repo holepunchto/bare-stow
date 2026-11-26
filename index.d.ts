@@ -1,6 +1,7 @@
 import URL from 'bare-url'
 import { PackOptions } from 'bare-pack'
-import { LowerTarget } from 'bare-bundle-lower'
+import { CompressTarget } from 'bare-bundle-compress'
+import { LowerFormat } from 'bare-bundle-lower'
 
 /** The source of a generated module, together with its type declaration. */
 interface Generated {
@@ -236,10 +237,16 @@ interface Target {
   /** The file extension of the bundle, such as `'.bundle'`. */
   extension: Resolvable<string>
   /**
-   * The newest ECMAScript syntax that the engine running the bundle supports, such as `'es5'`.
-   * Defaults to `'esnext'`. The syntax of the bundle is lowered to it.
+   * The newest ECMAScript syntax that the engine running the bundle supports, from `'es2015'` to
+   * `'esnext'`, the default. The syntax of the bundle is lowered to it.
    */
-  syntax?: Resolvable<LowerTarget>
+  syntax?: Resolvable<CompressTarget>
+  /**
+   * The module format that the engine running the bundle supports, either `'esm'`, the default, or
+   * `'cjs'` for engines without ES modules. With `'cjs'`, ES modules are converted to CommonJS and
+   * `import()` to `require()`.
+   */
+  modules?: Resolvable<LowerFormat>
   /** The host triples the target supports. */
   hosts: Resolvable<string[]>
   /** The host languages the target supports, keyed by language name. */

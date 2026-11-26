@@ -224,10 +224,19 @@ test('stow compresses the bundle', async (t) => {
 })
 
 test('stow lowers the syntax of the bundle to that of the target', async (t) => {
-  const source = 'module.exports = () => {}\n'
+  const source = 'module.exports = (a, b) => a ?? b\n'
 
-  t.ok((await stowVirtual(source)).includes('=>'))
-  t.absent((await stowVirtual(source, { target: { ...sidecar, syntax: 'es5' } })).includes('=>'))
+  t.ok((await stowVirtual(source)).includes('??'))
+  t.absent((await stowVirtual(source, { target: { ...sidecar, syntax: 'es2019' } })).includes('??'))
+})
+
+test('stow converts the modules of the bundle to the format of the target', async (t) => {
+  const source = "module.exports = () => import('bare-stow-runtime')\n"
+
+  t.ok((await stowVirtual(source)).includes('import('))
+  t.absent(
+    (await stowVirtual(source, { target: { ...sidecar, modules: 'cjs' } })).includes('import(')
+  )
 })
 
 test('stow lists the assets of packages through the given function', async (t) => {

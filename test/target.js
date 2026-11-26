@@ -184,6 +184,7 @@ test('harness resolves the properties of a target from the language', (t) => {
     isolation: 'process',
     linking: 'package',
     syntax: 'esnext',
+    modules: 'esm',
     hosts: ['linux-x64']
   })
 })
