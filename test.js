@@ -193,20 +193,9 @@ test('stow accepts a subset of target hosts', async (t) => {
 })
 
 test('stow reads and resolves modules through the given functions', async (t) => {
-  const dir = new URL('basic/', fixtures)
-  const entry = new URL('virtual.js', dir)
   const source = 'module.exports = function start() {}\n'
 
-  await artifacts(entry, new URL('out/javascript-sidecar', dir), {
-    readModule: (url) => (url.href === entry.href ? source : readModule(url)),
-    resolveModule: (url) => url
-  })
-
-  const bundle = Bundle.from(
-    fs.readFileSync(fileURLToPath(new URL('out/javascript-sidecar/index.bundle', dir)))
-  )
-
-  t.is(bundle.read('/test/fixtures/basic/virtual.js').toString(), source)
+  t.is(await stowVirtual(source, { compress: false }), source)
 })
 
 test('stow aliases extensions as given', async (t) => {
@@ -217,7 +206,8 @@ test('stow aliases extensions as given', async (t) => {
   await artifacts(entry, new URL('out/javascript-sidecar', dir), {
     readModule: (url) => (url.href === entry.href ? source : readModule(url)),
     resolveModule: (url) => url,
-    aliases: { '.mjs': '.js' }
+    aliases: { '.mjs': '.js' },
+    compress: false
   })
 
   const bundle = Bundle.from(
@@ -225,6 +215,19 @@ test('stow aliases extensions as given', async (t) => {
   )
 
   t.is(bundle.read('/test/fixtures/basic/virtual.js').toString(), source)
+})
+
+test('stow compresses the bundle', async (t) => {
+  const source = '// A comment.\nmodule.exports = function start() {}\n'
+
+  t.absent((await stowVirtual(source)).includes('A comment'))
+})
+
+test('stow lowers the syntax of the bundle to that of the target', async (t) => {
+  const source = 'module.exports = () => {}\n'
+
+  t.ok((await stowVirtual(source)).includes('=>'))
+  t.absent((await stowVirtual(source, { target: { ...sidecar, syntax: 'es5' } })).includes('=>'))
 })
 
 test('stow lists the assets of packages through the given function', async (t) => {
@@ -346,6 +349,23 @@ async function artifacts(entry, out, opts = {}) {
   }
 
   return written
+}
+
+async function stowVirtual(source, opts = {}) {
+  const dir = new URL('basic/', fixtures)
+  const entry = new URL('virtual.js', dir)
+
+  await artifacts(entry, new URL('out/javascript-sidecar', dir), {
+    readModule: (url) => (url.href === entry.href ? source : readModule(url)),
+    resolveModule: (url) => url,
+    ...opts
+  })
+
+  const bundle = Bundle.from(
+    fs.readFileSync(fileURLToPath(new URL('out/javascript-sidecar/index.bundle', dir)))
+  )
+
+  return bundle.read('/test/fixtures/basic/virtual.js').toString()
 }
 
 async function readModule(url) {

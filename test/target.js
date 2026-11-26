@@ -183,6 +183,7 @@ test('harness resolves the properties of a target from the language', (t) => {
     ...target,
     isolation: 'process',
     linking: 'package',
+    syntax: 'esnext',
     hosts: ['linux-x64']
   })
 })

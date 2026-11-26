@@ -1,5 +1,6 @@
 import URL from 'bare-url'
 import { PackOptions } from 'bare-pack'
+import { LowerTarget } from 'bare-bundle-lower'
 
 /** The source of a generated module, together with its type declaration. */
 interface Generated {
@@ -234,6 +235,11 @@ interface Target {
   encoding: Resolvable<string | null>
   /** The file extension of the bundle, such as `'.bundle'`. */
   extension: Resolvable<string>
+  /**
+   * The newest ECMAScript syntax that the engine running the bundle supports, such as `'es5'`.
+   * Defaults to `'esnext'`. The syntax of the bundle is lowered to it.
+   */
+  syntax?: Resolvable<LowerTarget>
   /** The host triples the target supports. */
   hosts: Resolvable<string[]>
   /** The host languages the target supports, keyed by language name. */
@@ -252,7 +258,7 @@ type RPCName = 'bare-rpc'
 interface RPCContext<O extends LanguageOptions = LanguageOptions> {
   /**
    * Whether the module binds the `'client'` in the harness or the `'server'` in the bundle. The
-   * server is always generated as JavaScript with `{ module: 'esm' }`.
+   * server is always generated as JavaScript with `{ module: 'cjs' }`.
    */
   role: 'client' | 'server'
   /** The options resolved by the language. */
@@ -291,6 +297,8 @@ interface StowOptions extends Omit<PackOptions, 'offload' | 'linked' | 'resolve'
   client?: RPC | RPCName
   /** The RPC library (or its name) to bind in the bundle's entry shim. */
   server?: RPC | RPCName
+  /** Whether to compress the modules of the bundle. Defaults to `true`. */
+  compress?: boolean
   /**
    * Resolve a target name to a `Target`, overriding the default target resolution.
    * @param name - The target name to resolve to a `Target`.
@@ -318,7 +326,7 @@ interface StowOptions extends Omit<PackOptions, 'offload' | 'linked' | 'resolve'
 }
 
 /** Options for `stow.link()`, which shape the graphs as for `stow()`. */
-interface LinkOptions extends Omit<StowOptions, 'client' | 'base' | 'resolveRPC'> {
+interface LinkOptions extends Omit<StowOptions, 'client' | 'base' | 'compress' | 'resolveRPC'> {
   /** Resolve an RPC name to an `RPC`, for the server bound in the entry shims. */
   resolveRPC?(name: string): RPC
 }

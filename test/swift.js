@@ -177,7 +177,8 @@ test('swift harness package links the addons imported by the shim', async (t) =>
     languages: {
       javascript: {
         generate: () => ({
-          source: "import 'bare-hrtime'\n\nexport function attach(ipc) {\n  return ipc\n}\n"
+          source:
+            "require('bare-hrtime')\n\nexports.attach = function attach(ipc) {\n  return ipc\n}\n"
         })
       }
     }

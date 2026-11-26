@@ -1,6 +1,8 @@
 const path = require('path')
 const pack = require('bare-pack')
 const id = require('bare-bundle-id')
+const compressBundle = require('bare-bundle-compress')
+const lowerBundle = require('bare-bundle-lower')
 const fs = require('./lib/fs')
 const assets = require('./lib/assets')
 const shim = require('./lib/shim')
@@ -20,6 +22,7 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
     server,
     base,
     hosts,
+    compress = true,
     resolveTarget,
     resolveRPC,
     resolveLanguage,
@@ -110,6 +113,11 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
     hooks.resolveModule,
     writeFile
   )
+
+  if (compress) bundle = compressBundle(bundle)
+
+  // Compressing may introduce newer syntax, so lowering comes last.
+  if (target.syntax !== 'esnext') bundle = lowerBundle(bundle, { target: target.syntax })
 
   base = resolveBase(base, bundle)
 

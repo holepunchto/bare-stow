@@ -91,13 +91,14 @@ const pack = command(
     'The base path of the bundle (defaults to the closest directory containing every bundled module)'
   ),
   flag('--out|-o <path>', 'The directory to write the harness package to'),
+  flag('--no-compress', 'Do not compress the bundle'),
   flags.builtins(),
   flags.imports(),
   flags.defer(),
   flags.host(),
   async (cmd) => {
     const { entry } = cmd.args
-    let { target, language, client, server, base, out, defer, host: hosts } = cmd.flags
+    let { target, language, client, server, base, out, compress, defer, host: hosts } = cmd.flags
 
     if (!target) throw new Error('--target is required')
     if (!out) throw new Error('--out is required')
@@ -111,6 +112,7 @@ const pack = command(
       server,
       base,
       hosts,
+      compress,
       defer
     })) {
       //
