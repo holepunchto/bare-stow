@@ -85,7 +85,7 @@ const sidecar = new Sidecar('./dev.js', ['--verbose'], { stdio: 'inherit' })
 const { ipc } = await harness.connect(sidecar)
 ```
 
-The modules of the bundle are compressed with <https://github.com/holepunchto/bare-bundle-compress>. Pass `compress: false`, or `--no-compress` on the command line, to leave them as written. For targets whose JavaScript engine doesn't support the newest syntax, such as `bare-kit` with an engine other than V8, their syntax is also lowered with <https://github.com/holepunchto/bare-bundle-lower>. Lowering to ES5 converts ES modules to CommonJS.
+The modules of the bundle are compressed with <https://github.com/holepunchto/bare-bundle-compress>. Pass `compress: false`, or `--no-compress` on the command line, to leave them as written. For targets whose JavaScript engine doesn't support the newest syntax or ES modules, such as `bare-kit` with an engine other than V8, they're also lowered with <https://github.com/holepunchto/bare-bundle-lower>, which converts ES modules to CommonJS for engines without them.
 
 `stow()` and `link()` read the module graph from disk by default. To read it from elsewhere, such as modules that aren't written to disk, pass `readModule`, `listPrefix`, and `resolveModule`. Generated files are still written to disk. A `readModule` that changes the type of a module also passes `aliases`, as for <https://github.com/holepunchto/bare-pack>, such as `{ '.mjs': '.js' }` to have ES modules converted to CommonJS loaded as such. They're merged over the aliases that `bare-stow` uses for TypeScript.
 
@@ -107,7 +107,7 @@ Runs the bundle in a worklet using <https://github.com/holepunchto/bare-kit>, wi
 
 Native addons are linked with <https://github.com/holepunchto/bare-link> and declared in the manifest, and assets are written next to the bundle. With the target option `linking` set to `'app'`, both are left to `link()` instead. On the JVM, addons and assets are written next to the bundle as files, which `start()` extracts along with the bundle to a temporary directory, so `linking` must be `'package'`.
 
-The target option `engine` selects the JavaScript engine of the worklet, either `'v8'`, the default, or a smaller one: `'javascriptcore'` in Swift and `'quickjs'` in Kotlin. Stow every bundle of an application, and link its addons, with the same engine, as an application can only include one. The syntax of bundles for the smaller engines is lowered to ES5.
+The target option `engine` selects the JavaScript engine of the worklet, either `'v8'`, the default, or a smaller one: `'javascriptcore'` in Swift and `'quickjs'` in Kotlin. Stow every bundle of an application, and link its addons, with the same engine, as an application can only include one. For the smaller engines, the syntax of the bundle is lowered to ES2021 for JavaScriptCore and ES2024 for QuickJS, and its ES modules are converted to CommonJS.
 
 ## Linking
 

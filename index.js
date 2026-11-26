@@ -114,10 +114,12 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
     writeFile
   )
 
-  if (compress) bundle = compressBundle(bundle)
+  if (target.syntax !== 'esnext' || target.modules !== 'esm') {
+    bundle = lowerBundle(bundle, { target: target.syntax, format: target.modules })
+  }
 
-  // Compressing may introduce newer syntax, so lowering comes last.
-  if (target.syntax !== 'esnext') bundle = lowerBundle(bundle, { target: target.syntax })
+  // Lowering pretty-prints the modules, so compressing comes last.
+  if (compress) bundle = compressBundle(bundle, { target: target.syntax })
 
   base = resolveBase(base, bundle)
 
