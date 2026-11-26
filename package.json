@@ -61,7 +61,7 @@
     "bare-fs": "^4.8.4",
     "bare-link": "^4.2.0",
     "bare-module-traverse": "^2.7.4",
-    "bare-pack": "^3.0.2",
+    "bare-pack": "^3.2.0",
     "bare-path": "^3.1.2",
     "bare-type-stripper": "^0.1.7",
     "bare-unpack": "^1.1.4",
