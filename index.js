@@ -8,6 +8,7 @@ const assets = require('./lib/assets')
 const shim = require('./lib/shim')
 const graph = require('./lib/graph')
 const rpcs = require('./lib/rpc')
+const transformer = require('./lib/transform')
 const { select } = require('./lib/provider')
 
 module.exports = exports = async function* stow(entry, target, out, opts = {}) {
@@ -23,8 +24,11 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
     base,
     hosts,
     compress = true,
+    transforms,
+    transformOptions,
     resolveTarget,
     resolveRPC,
+    resolveTransform,
     resolveLanguage,
     readModule = fs.readModule,
     listPrefix = fs.listPrefix,
@@ -55,6 +59,8 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
 
   if (client) client = select('RPC library', rpcs(client, resolveRPC), language.name)
   if (server) server = rpcs(server, resolveRPC)
+
+  transforms = transformer(transforms, transformOptions, resolveTransform)
 
   const layout = language.layout(out, options)
 
@@ -114,12 +120,28 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
     writeFile
   )
 
+  const context = {
+    target: target.name,
+    language: language.name,
+    options,
+    targetOptions,
+    hosts
+  }
+
+  bundle = await transformer.apply(transforms, bundle, context)
+
   if (target.syntax !== 'esnext' || target.modules !== 'esm') {
     bundle = lowerBundle(bundle, { target: target.syntax, format: target.modules })
   }
 
   // Lowering pretty-prints the modules, so compressing comes last.
   if (compress) bundle = compressBundle(bundle, { target: target.syntax })
+
+  // Addons are linked from the bundle, as transforms may change what it loads.
+  const packages =
+    target.linked && target.linking === 'package'
+      ? await graph.addons(bundle, hosts, hooks.readModule)
+      : []
 
   base = resolveBase(base, bundle)
 
@@ -155,7 +177,7 @@ module.exports = exports = async function* stow(entry, target, out, opts = {}) {
       throw new Error(`Language '${language.name}' does not support linked addons`)
     }
 
-    for await (const url of graph.link([main.url], layout.addons, traversal, hooks)) {
+    for await (const url of graph.link(packages, layout.addons, traversal, hooks)) {
       addons.push(url)
       yield { url }
     }

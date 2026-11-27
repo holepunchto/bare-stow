@@ -239,6 +239,113 @@ test('stow converts the modules of the bundle to the format of the target', asyn
   )
 })
 
+test('stow applies transforms in order before lowering and compressing the bundle', async (t) => {
+  const contexts = []
+
+  const append = (name, source) => ({
+    name,
+    transform(bundle, context) {
+      contexts.push(context)
+
+      for (const key of bundle.keys()) {
+        if (key.endsWith('/virtual.js')) bundle.write(key, bundle.read(key) + source)
+      }
+
+      return bundle
+    }
+  })
+
+  const output = await stowVirtual('module.exports = function start() {}\n', {
+    target: { ...sidecar, syntax: 'es2019' },
+    transforms: [
+      append('first', '// A comment.\nmodule.exports.first = (a, b) => a ?? b\n'),
+      append('second', 'module.exports.second = module.exports.first\n')
+    ]
+  })
+
+  t.ok(output.includes('.second=') && output.indexOf('.first=') < output.indexOf('.second='))
+  t.absent(output.includes('??'))
+  t.absent(output.includes('A comment'))
+  t.alike(contexts[0], {
+    target: 'bare-sidecar',
+    language: 'javascript',
+    options: { module: 'esm' },
+    targetOptions: {},
+    hosts: sidecar.hosts,
+    transformOptions: {}
+  })
+})
+
+test('stow passes each transform the options given for it', async (t) => {
+  const source = 'module.exports = function start() {}\n'
+
+  const banner = {
+    name: 'banner',
+    options({ text = 'default', ...unknown }) {
+      for (const option of Object.keys(unknown)) throw new Error(`Unknown option '${option}'`)
+
+      return { text }
+    },
+    transform(bundle, { transformOptions }) {
+      for (const key of bundle.keys()) {
+        if (key.endsWith('/virtual.js')) {
+          bundle.write(key, bundle.read(key) + `module.exports.text = '${transformOptions.text}'\n`)
+        }
+      }
+
+      return bundle
+    }
+  }
+
+  const empty = { name: 'empty', transform: (bundle) => bundle }
+
+  t.ok(
+    (
+      await stowVirtual(source, {
+        transforms: [banner, empty],
+        transformOptions: { banner: { text: 'given' } }
+      })
+    ).includes('given')
+  )
+
+  t.ok((await stowVirtual(source, { transforms: [banner] })).includes('default'))
+
+  await t.exception(
+    stowVirtual(source, { transforms: [banner], transformOptions: { other: {} } }),
+    /Options given for unknown transform 'other'/
+  )
+
+  await t.exception(
+    stowVirtual(source, { transforms: [banner], transformOptions: { banner: { size: 1 } } }),
+    /Unknown option 'size'/
+  )
+
+  await t.exception(
+    stowVirtual(source, { transforms: [empty], transformOptions: { empty: { size: 1 } } }),
+    /Unknown option 'size' for transform 'empty'/
+  )
+})
+
+test('stow resolves transform names through the given function', async (t) => {
+  const source = 'module.exports = function start() {}\n'
+  const empty = { name: 'empty', transform: (bundle) => bundle }
+
+  t.is(
+    await stowVirtual(source, {
+      compress: false,
+      transforms: ['empty'],
+      resolveTransform: (name) => (name === 'empty' ? empty : null)
+    }),
+    source
+  )
+
+  await t.exception(stowVirtual(source, { transforms: ['empty'] }), /Unknown transform 'empty'/)
+  await t.exception(
+    stowVirtual(source, { transforms: [{ name: 'broken' }] }),
+    /Transform must provide a transform\(\) function/
+  )
+})
+
 test('stow lists the assets of packages through the given function', async (t) => {
   const dir = new URL('reroot/app/', fixtures)
 

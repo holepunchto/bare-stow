@@ -85,7 +85,26 @@ const sidecar = new Sidecar('./dev.js', ['--verbose'], { stdio: 'inherit' })
 const { ipc } = await harness.connect(sidecar)
 ```
 
-The modules of the bundle are compressed with <https://github.com/holepunchto/bare-bundle-compress>. Pass `compress: false`, or `--no-compress` on the command line, to leave them as written. For targets whose JavaScript engine doesn't support the newest syntax or ES modules, such as `bare-kit` with an engine other than V8, they're also lowered with <https://github.com/holepunchto/bare-bundle-lower>, which converts ES modules to CommonJS for engines without them.
+The modules of the bundle are compressed with <https://github.com/holepunchto/bare-bundle-compress>. Pass `compress: false`, or `--no-compress` on the command line, to leave them as written. For targets whose JavaScript engine doesn't support the newest syntax or ES modules, such as `bare-kit` with an engine other than V8, they're also lowered with <https://github.com/holepunchto/bare-bundle-lower>, which converts ES modules to CommonJS for engines without them. A converted `import()` in a CommonJS module loads the same module as before, so stowing fails if the module also loads the same specifier with `require()` and the two resolve to different modules, such as the ES module and CommonJS builds of a package. Load the package one way in that module to fix it.
+
+To transform the bundle in other ways, pass `transforms`, or `--transform` on the command line. A transform is an object with a `name` and a `transform(bundle, context)` function, which returns the transformed bundle or a promise of it. The transforms run in order, after the module graph is packed and before its modules are lowered and compressed, so whatever they write is lowered and compressed too. The modules are still named by their absolute URLs. `context` holds the names of the `target` and `language`, the resolved `options` and `targetOptions`, the `hosts` of the bundle, and the `transformOptions` of the transform. Options for transforms are given as `transformOptions`, keyed by the name of each transform, such as `{ banner: { text: 'hello' } }`. A transform resolves them with its `options(given)` function, and without one it accepts no options. Linked addons and assets are those that the transformed bundle loads, so pass `link()` the same transforms as `stow()`.
+
+```js
+const transform = {
+  name: 'banner',
+  transform(bundle, context) {
+    for (const key of bundle.keys()) {
+      bundle.write(key, `// Stowed for ${context.target}\n` + bundle.read(key))
+    }
+
+    return bundle
+  }
+}
+
+for await (const artifact of stow(entry, 'bare-sidecar', out, { transforms: [transform] })) {
+  // ...
+}
+```
 
 `stow()` and `link()` read the module graph from disk by default. To read it from elsewhere, such as modules that aren't written to disk, pass `readModule`, `listPrefix`, and `resolveModule`. Generated files are still written to disk. A `readModule` that changes the type of a module also passes `aliases`, as for <https://github.com/holepunchto/bare-pack>, such as `{ '.mjs': '.js' }` to have ES modules converted to CommonJS loaded as such. They're merged over the aliases that `bare-stow` uses for TypeScript.
 
@@ -128,7 +147,7 @@ for await (const artifact of stow.link(entries, 'bare-kit', out, { language: 'sw
 }
 ```
 
-The language lays out the package and the target adds what loads the addons. For `bare-kit`, that's `bare-kit-swift` or `bare-kit-kotlin`. The assets go in a folder named by `stow.resources`, listed in a file of the same name with the `.assets` extension, which a Swift application copies into its bundle. `link()` takes the same options as `stow()`, except `client` and `base`.
+The language lays out the package and the target adds what loads the addons. For `bare-kit`, that's `bare-kit-swift` or `bare-kit-kotlin`. The assets go in a folder named by `stow.resources`, listed in a file of the same name with the `.assets` extension, which a Swift application copies into its bundle. `link()` takes the same options as `stow()`, except `client`, `base`, and `compress`.
 
 ## Languages
 
@@ -186,7 +205,7 @@ The harness and the bundle multiplex a control channel and the user data over a 
 
 ## Providers
 
-Languages, targets, and RPC libraries are providers that may live outside `bare-stow`. `stow()` and `link()` accept a provider object in place of a name, and names other than the built-in ones are resolved through `resolveLanguage`, `resolveTarget`, and `resolveRPC`. For example, <https://github.com/holepunchto/bare-stow-target-react-native> is a target for React Native. Targets and RPC libraries generate code for each language they list under `languages`, and providers without an entry for the language of the harness are rejected. Targets may also take options, given as `targetOptions`. The server side of an RPC library is always generated as JavaScript, as the bundle runs in Bare. See `index.d.ts` for the interfaces.
+Languages, targets, RPC libraries, and transforms are providers that may live outside `bare-stow`. `stow()` and `link()` accept a provider object in place of a name, and names other than the built-in ones are resolved through `resolveLanguage`, `resolveTarget`, `resolveRPC`, and `resolveTransform`. There are no built-in transforms. For example, <https://github.com/holepunchto/bare-stow-target-react-native> is a target for React Native. Targets and RPC libraries generate code for each language they list under `languages`, and providers without an entry for the language of the harness are rejected. Targets may also take options, given as `targetOptions`. The server side of an RPC library is always generated as JavaScript, as the bundle runs in Bare. See `index.d.ts` for the interfaces.
 
 ## CLI
 
@@ -204,6 +223,8 @@ Stow the module graph rooted at `<entry>` into the directory given by `--out`.
 --base <path>
 --out|-o <path>
 --no-compress
+--transform <name>
+--transform-option <name.key=value>
 --builtins <path>
 --imports <path>
 --defer <specifier>
@@ -222,6 +243,8 @@ Link the addons and assets of the module graphs rooted at each `<entry>` into th
 --language-option <key=value>
 --server <name>
 --out|-o <path>
+--transform <name>
+--transform-option <name.key=value>
 --builtins <path>
 --imports <path>
 --defer <specifier>
@@ -229,7 +252,7 @@ Link the addons and assets of the module graphs rooted at each `<entry>` into th
 --help|-h
 ```
 
-`--target`, `--language`, `--client`, and `--server` take a built-in name, the name of a `bare-stow-target-<name>`, `bare-stow-language-<name>`, or `bare-stow-rpc-<name>` package, or a module specifier, resolved from the working directory. `--target-option`, `--language-option`, `--defer`, and `--host` may be passed multiple times. A dotted key of `--target-option` or `--language-option`, such as `ios.engine=javascriptcore`, sets a nested option. `--host` must name hosts the target supports, and defaults to all of them.
+`--target`, `--language`, `--client`, `--server`, and `--transform` take a built-in name, the name of a `bare-stow-target-<name>`, `bare-stow-language-<name>`, `bare-stow-rpc-<name>`, or `bare-stow-transform-<name>` package, or a module specifier, resolved from the working directory. `--target-option`, `--language-option`, `--transform`, `--transform-option`, `--defer`, and `--host` may be passed multiple times. `--transform-option` takes the name of the transform first, such as `banner.text=hello`. A dotted key of `--target-option` or `--language-option`, such as `ios.engine=javascriptcore`, sets a nested option. `--host` must name hosts the target supports, and defaults to all of them.
 
 `--builtins` and `--imports` are paths to JavaScript or JSON files exporting a list of builtin modules and a map of import overrides, which are forwarded to `bare-pack`.
 

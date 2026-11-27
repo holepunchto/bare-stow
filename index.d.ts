@@ -1,4 +1,5 @@
 import URL from 'bare-url'
+import Bundle from 'bare-bundle'
 import { PackOptions } from 'bare-pack'
 import { CompressTarget } from 'bare-bundle-compress'
 import { LowerFormat } from 'bare-bundle-lower'
@@ -41,13 +42,13 @@ interface Layout {
 }
 
 /** The context passed to a language's `manifest()`. */
-interface ManifestContext {
+interface ManifestContext<O extends object = LanguageOptions> {
   /** The package name, as given by the layout. */
   name: string
   /** The packages the generated modules import, as declared by their generators. */
   dependencies: Record<string, unknown>
   /** The options resolved by the language. */
-  options: LanguageOptions
+  options: O
   /** The host triples the bundle is packed for. */
   hosts: string[]
   /** References from the manifest to the bundle and the files written next to it. */
@@ -85,7 +86,7 @@ type LanguageName = 'javascript' | 'kotlin' | 'python' | 'swift'
  * A host language, such as `javascript`, describing how generated modules in that language are laid
  * out, named, referenced, and declared.
  */
-interface Language {
+interface Language<O extends object = LanguageOptions> {
   /** The language's name, used to select its entry in a target's or RPC library's `languages`. */
   name: string
   /**
@@ -93,14 +94,14 @@ interface Language {
    * @param given - The options given through `StowOptions.languageOptions`.
    * @throws An option is unknown or has an invalid value.
    */
-  options(given?: LanguageOptions): LanguageOptions
+  options(given?: LanguageOptions): O
   /**
    * Lay the generated files out in the package directory `out`.
    * @param out - The package directory, as a URL ending in a slash.
    * @param options - The options resolved by the language, with any pinned by the target applied.
    * @throws `out` is not valid as a package for the language.
    */
-  layout(out: URL, options: LanguageOptions): Layout
+  layout(out: URL, options: O): Layout
   /**
    * Name a module generated alongside `url`.
    * @param url - The module the sibling is generated alongside.
@@ -123,13 +124,13 @@ interface Language {
    * Render the manifest named by the layout.
    * @param context - The manifest context describing the package to declare.
    */
-  manifest(context: ManifestContext): string
+  manifest(context: ManifestContext<O>): string
 }
 
 type TargetName = 'bare-kit' | 'bare-sidecar' | 'bare-worker'
 
 /** The context passed to a target language's `generate()`. */
-interface TargetContext<O extends LanguageOptions = LanguageOptions> {
+interface TargetContext<O extends object = LanguageOptions, T extends object = TargetOptions> {
   /** A reference from the harness to the bundle. */
   bundle: string
   /**
@@ -146,15 +147,15 @@ interface TargetContext<O extends LanguageOptions = LanguageOptions> {
   /** The options resolved by the language, with any pinned by the target applied. */
   options: O
   /** The options resolved by the target. */
-  targetOptions: TargetOptions
+  targetOptions: T
 }
 
 /** The context passed to a target language's `link()`. */
-interface TargetLinkContext<O extends LanguageOptions = LanguageOptions> {
+interface TargetLinkContext<O extends object = LanguageOptions, T extends object = TargetOptions> {
   /** The options resolved by the language, with any pinned by the target applied. */
   options: O
   /** The options resolved by the target. */
-  targetOptions: TargetOptions
+  targetOptions: T
 }
 
 /** The module and dependencies of a package of linked addons. */
@@ -166,103 +167,149 @@ interface Linked {
 }
 
 /** A target's support for one host language. */
-interface TargetLanguage<O extends LanguageOptions = LanguageOptions> {
+interface TargetLanguage<O extends object = LanguageOptions, T extends object = TargetOptions> {
   /** Options pinned over those the language would otherwise resolve. */
   options?: Partial<O>
   /**
    * Generate the harness for `context`.
    * @param context - The target context describing the bundle and RPC client to reference.
    */
-  generate(context: TargetContext<O>): Generated
+  generate(context: TargetContext<O, T>): Generated
   /**
    * Generate the module of a package of addons for `stow.link()`, which requires it.
    * @param context - The context describing the options to generate for.
    */
-  link?(context: TargetLinkContext<O>): Linked
+  link?(context: TargetLinkContext<O, T>): Linked
 }
 
 /** Options resolved by a target from those given. */
 type TargetOptions = Record<string, unknown>
 
 /** The context passed to the properties of a target that are functions. */
-interface TargetResolveContext<O extends LanguageOptions = LanguageOptions> {
+interface TargetResolveContext<
+  O extends object = LanguageOptions,
+  T extends object = TargetOptions
+> {
   /** The name of the language of the harness. */
   language: string
   /** The options resolved by the language, with any pinned by the target applied. */
   options: O
   /** The options resolved by the target. */
-  targetOptions: TargetOptions
+  targetOptions: T
 }
 
 /**
  * A property of a target, or a function resolving it from the language of the harness and the
  * options it resolved, such as hosts that differ between languages.
  */
-type Resolvable<T> = T | ((context: TargetResolveContext) => T)
+type Resolvable<V, T extends object = TargetOptions> =
+  V | ((context: TargetResolveContext<LanguageOptions, T>) => V)
 
 /**
  * A bundling target, such as `bare-sidecar` or `bare-worker`, describing how to package a bundle and
  * boot it from a host in each of the languages it supports.
  */
-interface Target {
+interface Target<T extends object = TargetOptions> {
   /** The target's name. */
   name: string
   /**
    * Whether the bundle owns its `'process'` or shares one by running in a `'thread'`. Only a bundle
    * that owns its process handles signals.
    */
-  isolation: Resolvable<'process' | 'thread'>
+  isolation: Resolvable<'process' | 'thread', T>
   /**
    * Whether the bundle links against its dependencies rather than inlining them. A linked bundle
    * also leaves its assets out, as files that the runtime loads.
    */
-  linked: Resolvable<boolean>
+  linked: Resolvable<boolean, T>
   /**
    * Whether addons and assets are linked into the harness `'package'`, the default, or left to the
    * `'app'`, which links them with `stow.link()`.
    */
-  linking?: Resolvable<'package' | 'app'>
+  linking?: Resolvable<'package' | 'app', T>
   /**
    * Whether native addons and/or assets are written out as sibling files instead of being inlined
    * into the bundle.
    */
-  offload: Resolvable<boolean | { addons?: boolean; assets?: boolean }>
+  offload: Resolvable<boolean | { addons?: boolean; assets?: boolean }, T>
   /** The encoding format of the written bundle artifact. */
-  format: Resolvable<'bundle' | 'bundle.cjs' | 'bundle.mjs' | 'bundle.json'>
+  format: Resolvable<'bundle' | 'bundle.cjs' | 'bundle.mjs' | 'bundle.json', T>
   /**
    * The text encoding used when the bundle format wraps the bundle as a string, or `null` when the
    * bundle is written as raw bytes.
    */
-  encoding: Resolvable<string | null>
+  encoding: Resolvable<string | null, T>
   /** The file extension of the bundle, such as `'.bundle'`. */
-  extension: Resolvable<string>
+  extension: Resolvable<string, T>
   /**
    * The newest ECMAScript syntax that the engine running the bundle supports, from `'es2015'` to
    * `'esnext'`, the default. The syntax of the bundle is lowered to it.
    */
-  syntax?: Resolvable<CompressTarget>
+  syntax?: Resolvable<CompressTarget, T>
   /**
    * The module format that the engine running the bundle supports, either `'esm'`, the default, or
    * `'cjs'` for engines without ES modules. With `'cjs'`, ES modules are converted to CommonJS and
    * `import()` to `require()`.
    */
-  modules?: Resolvable<LowerFormat>
+  modules?: Resolvable<LowerFormat, T>
   /** The host triples the target supports. */
-  hosts: Resolvable<string[]>
-  /** The host languages the target supports, keyed by language name. */
-  languages: Record<string, TargetLanguage>
+  hosts: Resolvable<string[], T>
+  /**
+   * The host languages the target supports, keyed by language name. Each may resolve options of its
+   * own shape.
+   */
+  languages: Record<string, TargetLanguage<any, T>>
   /**
    * Resolve the options of the target from those given. Without it, the target accepts no options.
    * @param given - The options given through `StowOptions.targetOptions`.
    * @throws An option is unknown or has an invalid value.
    */
-  options?(given: TargetOptions): TargetOptions
+  options?(given: TargetOptions): T
 }
 
 type RPCName = 'bare-rpc'
 
+/** The context passed to a transform's `transform()`. */
+interface TransformContext<T extends object = TransformOptions> {
+  /** The name of the target. */
+  target: string
+  /** The name of the language of the harness. */
+  language: string
+  /** The options resolved by the language, with any pinned by the target applied. */
+  options: LanguageOptions
+  /** The options resolved by the target. */
+  targetOptions: TargetOptions
+  /** The host triples the bundle is stowed for. */
+  hosts: string[]
+  /** The options resolved by the transform. */
+  transformOptions: T
+}
+
+/** Options resolved by a transform from those given. */
+type TransformOptions = Record<string, unknown>
+
+/** A transform of the bundle, applied before its modules are lowered and compressed. */
+interface Transform<T extends object = TransformOptions> {
+  /** The transform's name. */
+  name: string
+  /**
+   * Transform the bundle, whose modules are still named by their absolute URLs.
+   * @param bundle - The bundle to transform.
+   * @param context - The context describing what the bundle is stowed for.
+   * @returns The transformed bundle, which may be `bundle` itself.
+   */
+  transform(bundle: Bundle, context: TransformContext<T>): Bundle | Promise<Bundle>
+  /**
+   * Resolve the options of the transform from those given. Without it, the transform accepts no
+   * options.
+   * @param given - The options given for the transform through `StowOptions.transformOptions`.
+   * @throws An option is unknown or has an invalid value.
+   */
+  options?(given: TransformOptions): T
+}
+
 /** The context passed to an RPC language's `generate()`. */
-interface RPCContext<O extends LanguageOptions = LanguageOptions> {
+interface RPCContext<O extends object = LanguageOptions> {
   /**
    * Whether the module binds the `'client'` in the harness or the `'server'` in the bundle. The
    * server is always generated as JavaScript with `{ module: 'cjs' }`.
@@ -273,7 +320,7 @@ interface RPCContext<O extends LanguageOptions = LanguageOptions> {
 }
 
 /** An RPC library's support for one language. */
-interface RPCLanguage<O extends LanguageOptions = LanguageOptions> {
+interface RPCLanguage<O extends object = LanguageOptions> {
   /**
    * Generate a module exposing `attach(ipc, handlers)`, which calls `handlers` to register the
    * handlers of an RPC instance, binds it to the IPC handle, and returns it, and the `Handlers`
@@ -288,14 +335,17 @@ interface RPCLanguage<O extends LanguageOptions = LanguageOptions> {
 interface RPC {
   /** The RPC library's name. */
   name: string
-  /** The languages the RPC library supports, keyed by language name. */
-  languages: Record<string, RPCLanguage>
+  /**
+   * The languages the RPC library supports, keyed by language name. Each may resolve options of its
+   * own shape.
+   */
+  languages: Record<string, RPCLanguage<any>>
 }
 
 /** Options for `stow()`. */
 interface StowOptions extends Omit<PackOptions, 'offload' | 'linked' | 'resolve'> {
   /** The language of the harness (or its name). Defaults to `javascript`. */
-  language?: Language | LanguageName
+  language?: Language<any> | LanguageName
   /** The options given to the language, such as `{ module: 'cjs' }` for `javascript`. */
   languageOptions?: LanguageOptions
   /** The options given to the target. */
@@ -307,20 +357,33 @@ interface StowOptions extends Omit<PackOptions, 'offload' | 'linked' | 'resolve'
   /** Whether to compress the modules of the bundle. Defaults to `true`. */
   compress?: boolean
   /**
+   * The transforms (or their names) to apply to the bundle, in order, before its modules are lowered
+   * and compressed.
+   */
+  transforms?: (Transform<any> | string)[]
+  /** The options given to the transforms, keyed by the name of each transform. */
+  transformOptions?: Record<string, TransformOptions>
+  /**
    * Resolve a target name to a `Target`, overriding the default target resolution.
    * @param name - The target name to resolve to a `Target`.
    */
-  resolveTarget?(name: string): Target
+  resolveTarget?(name: string): Target<any>
   /**
    * Resolve an RPC name to an `RPC`, overriding the default RPC resolution.
    * @param name - The RPC name to resolve to an `RPC`.
    */
   resolveRPC?(name: string): RPC
   /**
+   * Resolve a transform name to a `Transform`. There are no built-in transforms, so every name is
+   * resolved through it.
+   * @param name - The transform name to resolve to a `Transform`.
+   */
+  resolveTransform?(name: string): Transform<any>
+  /**
    * Resolve a language name to a `Language`, overriding the default language resolution.
    * @param name - The language name to resolve to a `Language`.
    */
-  resolveLanguage?(name: string): Language
+  resolveLanguage?(name: string): Language<any>
   /**
    * Read the source of the module at `url`, or `null` if there is none, such as to stow modules
    * that aren't written to disk. Defaults to reading the file.
@@ -365,11 +428,13 @@ interface StowArtifact {
  * @throws The `out` argument is missing.
  * @throws A language option is unknown or invalid, or `out` is not valid as a package.
  * @throws The target or an RPC library does not support the language.
+ * @throws A transform name cannot be resolved, or a transform provides no `transform()` function.
+ * @throws Options are given for a transform that isn't applied, or are unknown or invalid.
  * @throws A host in `opts.hosts` is not supported by the resolved target in the language.
  */
 declare function stow(
   entry: URL | string,
-  target: Target | TargetName,
+  target: Target<any> | TargetName,
   out: URL | string,
   opts?: StowOptions
 ): AsyncGenerator<StowArtifact>
@@ -388,10 +453,12 @@ declare namespace stow {
    * @throws The target does not link addons, or does not support linking for the language.
    * @throws The language does not support linked addons or assets.
    * @throws Two different assets would link to the same path.
+   * @throws A transform name cannot be resolved, or a transform provides no `transform()` function.
+   * @throws Options are given for a transform that isn't applied, or are unknown or invalid.
    */
   export function link(
     entries: URL | string | (URL | string)[],
-    target: Target | TargetName,
+    target: Target<any> | TargetName,
     out: URL | string,
     opts?: LinkOptions
   ): AsyncGenerator<StowArtifact>
@@ -426,6 +493,9 @@ declare namespace stow {
     type RPCContext,
     type RPCLanguage,
     type StowOptions,
+    type Transform,
+    type TransformContext,
+    type TransformOptions,
     type StowArtifact
   }
 }
