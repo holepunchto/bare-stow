@@ -105,6 +105,58 @@ test('link reads and resolves modules through the given functions', async (t) =>
   )
 })
 
+test('link and stow link the addons that the transformed bundles load', async (t) => {
+  const dir = new URL('linked/', fixtures)
+
+  const opts = {
+    language: 'kotlin',
+    languageOptions: { package: 'to.holepunch.addons' },
+    hosts: ['android-arm64'],
+    transforms: [
+      {
+        name: 'drop-addons',
+        transform(bundle) {
+          bundle.addons = []
+          return bundle
+        }
+      }
+    ]
+  }
+
+  t.alike(
+    (await link(dir, 'bare-kit', 'out/link-transformed', opts)).map(({ url }) => url.href),
+    [new URL('out/link-transformed/build.gradle', dir).href]
+  )
+
+  const written = await drain(
+    stow(new URL('core.js', dir), 'bare-kit', new URL('out/stow-transformed', dir), opts)
+  )
+
+  t.absent(written.some(({ url }) => url.pathname.endsWith('.so')))
+})
+
+test('link throws for an addon of a transformed bundle without a package', async (t) => {
+  const dir = new URL('linked/', fixtures)
+
+  await t.exception(
+    link(dir, 'bare-kit', 'out/link-missing', {
+      language: 'kotlin',
+      languageOptions: { package: 'to.holepunch.addons' },
+      hosts: ['android-arm64'],
+      transforms: [
+        {
+          name: 'add-addon',
+          transform(bundle) {
+            bundle.addons = [...bundle.addons, 'linked:libmissing.1.0.0.so']
+            return bundle
+          }
+        }
+      ]
+    }),
+    /Cannot find the package of addon 'linked:libmissing.1.0.0.so'/
+  )
+})
+
 test('link declares the java classes of addons for kotlin', async (t) => {
   const dir = new URL('java/', fixtures)
 

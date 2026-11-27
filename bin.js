@@ -12,6 +12,11 @@ const flags = {
       'The target runtime (bare-kit, bare-sidecar, bare-worker, or a bare-stow-target-<name> package)'
     ),
   targetOption: () => flag('--target-option <key=value>', 'An option for the target').multiple(),
+  transformOption: () =>
+    flag(
+      '--transform-option <name.key=value>',
+      'An option for the transform with the given name'
+    ).multiple(),
   language: () =>
     flag(
       '--language <name>',
@@ -31,7 +36,12 @@ const flags = {
   imports: () => flag('--imports <path>', 'A map of global import overrides'),
   defer: () => flag('--defer <specifier>', 'A module specifier to defer resolution of').multiple(),
   host: () =>
-    flag('--host <name>', 'A host triple to include (must be a subset of the target)').multiple()
+    flag('--host <name>', 'A host triple to include (must be a subset of the target)').multiple(),
+  transform: () =>
+    flag(
+      '--transform <name>',
+      'A transform to apply to the bundle (a bare-stow-transform-<name> package)'
+    ).multiple()
 }
 
 const link = command(
@@ -44,13 +54,15 @@ const link = command(
   flags.languageOption(),
   flags.server(),
   flag('--out|-o <path>', 'The directory to write the package of linked addons and assets to'),
+  flags.transform(),
+  flags.transformOption(),
   flags.builtins(),
   flags.imports(),
   flags.defer(),
   flags.host(),
   async (cmd) => {
     const entries = cmd.rest || []
-    const { target, language, server, out, defer, host: hosts } = cmd.flags
+    const { target, language, server, out, transform: transforms, defer, host: hosts } = cmd.flags
 
     if (!target) throw new Error('--target is required')
     if (!out) throw new Error('--out is required')
@@ -65,6 +77,7 @@ const link = command(
         language,
         server,
         hosts,
+        transforms,
         defer
       }
     )) {
@@ -92,13 +105,26 @@ const pack = command(
   ),
   flag('--out|-o <path>', 'The directory to write the harness package to'),
   flag('--no-compress', 'Do not compress the bundle'),
+  flags.transform(),
+  flags.transformOption(),
   flags.builtins(),
   flags.imports(),
   flags.defer(),
   flags.host(),
   async (cmd) => {
     const { entry } = cmd.args
-    let { target, language, client, server, base, out, compress, defer, host: hosts } = cmd.flags
+    let {
+      target,
+      language,
+      client,
+      server,
+      base,
+      out,
+      compress,
+      transform: transforms,
+      defer,
+      host: hosts
+    } = cmd.flags
 
     if (!target) throw new Error('--target is required')
     if (!out) throw new Error('--out is required')
@@ -113,6 +139,7 @@ const pack = command(
       base,
       hosts,
       compress,
+      transforms,
       defer
     })) {
       //
@@ -125,10 +152,12 @@ function common(flags) {
   return {
     languageOptions: keyValues('--language-option', flags.languageOption),
     targetOptions: keyValues('--target-option', flags.targetOption),
+    transformOptions: keyValues('--transform-option', flags.transformOption),
     builtins: load(flags.builtins),
     imports: load(flags.imports),
     resolveTarget,
     resolveRPC,
+    resolveTransform,
     resolveLanguage
   }
 }
@@ -177,7 +206,8 @@ function load(file) {
 // Built-in names are resolved by bare-stow itself; any other name is loaded
 // from its `bare-stow-target-<name>`, `bare-stow-rpc-<name>`, or
 // `bare-stow-language-<name>` package, or as a full module specifier, resolved
-// from the working directory.
+// from the working directory. Transforms have no built-in names and resolve
+// from `bare-stow-transform-<name>` packages the same way.
 
 function resolveTarget(name) {
   return resolveProvider('bare-stow-target', name)
@@ -189,6 +219,10 @@ function resolveRPC(name) {
 
 function resolveLanguage(name) {
   return resolveProvider('bare-stow-language', name)
+}
+
+function resolveTransform(name) {
+  return resolveProvider('bare-stow-transform', name)
 }
 
 function resolveProvider(prefix, name) {

@@ -1,4 +1,5 @@
 import URL from 'bare-url'
+import Bundle from 'bare-bundle'
 import { PackOptions } from 'bare-pack'
 import { CompressTarget } from 'bare-bundle-compress'
 import { LowerFormat } from 'bare-bundle-lower'
@@ -261,6 +262,45 @@ interface Target {
 
 type RPCName = 'bare-rpc'
 
+/** The context passed to a transform's `transform()`. */
+interface TransformContext<O extends LanguageOptions = LanguageOptions> {
+  /** The name of the target. */
+  target: string
+  /** The name of the language of the harness. */
+  language: string
+  /** The options resolved by the language, with any pinned by the target applied. */
+  options: O
+  /** The options resolved by the target. */
+  targetOptions: TargetOptions
+  /** The host triples the bundle is stowed for. */
+  hosts: string[]
+  /** The options resolved by the transform. */
+  transformOptions: TransformOptions
+}
+
+/** Options resolved by a transform from those given. */
+type TransformOptions = Record<string, unknown>
+
+/** A transform of the bundle, applied before its modules are lowered and compressed. */
+interface Transform {
+  /** The transform's name. */
+  name: string
+  /**
+   * Transform the bundle, whose modules are still named by their absolute URLs.
+   * @param bundle - The bundle to transform.
+   * @param context - The context describing what the bundle is stowed for.
+   * @returns The transformed bundle, which may be `bundle` itself.
+   */
+  transform(bundle: Bundle, context: TransformContext): Bundle | Promise<Bundle>
+  /**
+   * Resolve the options of the transform from those given. Without it, the transform accepts no
+   * options.
+   * @param given - The options given for the transform through `StowOptions.transformOptions`.
+   * @throws An option is unknown or has an invalid value.
+   */
+  options?(given: TransformOptions): TransformOptions
+}
+
 /** The context passed to an RPC language's `generate()`. */
 interface RPCContext<O extends LanguageOptions = LanguageOptions> {
   /**
@@ -307,6 +347,13 @@ interface StowOptions extends Omit<PackOptions, 'offload' | 'linked' | 'resolve'
   /** Whether to compress the modules of the bundle. Defaults to `true`. */
   compress?: boolean
   /**
+   * The transforms (or their names) to apply to the bundle, in order, before its modules are lowered
+   * and compressed.
+   */
+  transforms?: (Transform | string)[]
+  /** The options given to the transforms, keyed by the name of each transform. */
+  transformOptions?: Record<string, TransformOptions>
+  /**
    * Resolve a target name to a `Target`, overriding the default target resolution.
    * @param name - The target name to resolve to a `Target`.
    */
@@ -316,6 +363,12 @@ interface StowOptions extends Omit<PackOptions, 'offload' | 'linked' | 'resolve'
    * @param name - The RPC name to resolve to an `RPC`.
    */
   resolveRPC?(name: string): RPC
+  /**
+   * Resolve a transform name to a `Transform`. There are no built-in transforms, so every name is
+   * resolved through it.
+   * @param name - The transform name to resolve to a `Transform`.
+   */
+  resolveTransform?(name: string): Transform
   /**
    * Resolve a language name to a `Language`, overriding the default language resolution.
    * @param name - The language name to resolve to a `Language`.
@@ -365,6 +418,8 @@ interface StowArtifact {
  * @throws The `out` argument is missing.
  * @throws A language option is unknown or invalid, or `out` is not valid as a package.
  * @throws The target or an RPC library does not support the language.
+ * @throws A transform name cannot be resolved, or a transform provides no `transform()` function.
+ * @throws Options are given for a transform that isn't applied, or are unknown or invalid.
  * @throws A host in `opts.hosts` is not supported by the resolved target in the language.
  */
 declare function stow(
@@ -388,6 +443,8 @@ declare namespace stow {
    * @throws The target does not link addons, or does not support linking for the language.
    * @throws The language does not support linked addons or assets.
    * @throws Two different assets would link to the same path.
+   * @throws A transform name cannot be resolved, or a transform provides no `transform()` function.
+   * @throws Options are given for a transform that isn't applied, or are unknown or invalid.
    */
   export function link(
     entries: URL | string | (URL | string)[],
@@ -426,6 +483,9 @@ declare namespace stow {
     type RPCContext,
     type RPCLanguage,
     type StowOptions,
+    type Transform,
+    type TransformContext,
+    type TransformOptions,
     type StowArtifact
   }
 }
